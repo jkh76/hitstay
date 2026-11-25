@@ -105,6 +105,11 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 .pf{display:flex;justify-content:space-between;gap:6px;margin-top:8px;font-size:12px;color:var(--muted)}
 .pf .st{font-weight:800;color:var(--ink)}
 .pf .bust{color:var(--red);font-weight:800}
+/* 상태 글자(베팅·콜·체크 등)가 바뀌어도 박스 크기가 변하지 않게 고정 */
+.pf{min-height:1.45em}
+.ph .nm,.ph .chips{line-height:22px}.ph .tags{height:22px;align-items:center}.tag{line-height:14px}.pf b{line-height:1}
+.pf .sm,.pf .st{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:1.45em;line-height:1.45em}
+.pf .st{flex:none;max-width:60%}.pf .sm{min-width:0}
 .bet{position:absolute;top:-10px;right:10px;background:var(--gold);color:#222;font-size:11px;font-weight:800;padding:2px 7px;border-radius:10px}
 .bet[hidden]{display:none}
 .res{position:absolute;top:-16px;left:50%;transform:translateX(-50%);z-index:3;white-space:nowrap;background:#123d2e;border:2px solid var(--muted);color:var(--ink);font-size:13px;font-weight:800;padding:2px 10px;border-radius:12px;box-shadow:0 3px 8px rgba(0,0,0,.4);animation:respop .35s cubic-bezier(.2,1.5,.4,1) both}
@@ -113,6 +118,15 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 .res.bust{background:#5c1d22;border-color:var(--red);color:#ffd6d8}
 @keyframes respop{0%{transform:translateX(-50%) scale(.3);opacity:0}100%{transform:translateX(-50%) scale(1);opacity:1}}
 #players{row-gap:18px}
+/* 사람 2명 이상일 때 턴 시작 알림 */
+.turnbox{position:fixed;inset:0;z-index:190;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.45);cursor:pointer;animation:tbfade .2s ease both}
+.turnbox .tb{--c:var(--gold);min-width:min(320px,86vw);text-align:center;padding:18px 26px 14px;border-radius:20px;background:rgba(8,30,22,.94);border:3px solid var(--c);box-shadow:0 0 0 6px color-mix(in srgb,var(--c) 25%,transparent),0 16px 44px rgba(0,0,0,.6);animation:burstpop .42s cubic-bezier(.2,1.5,.4,1) both}
+.turnbox small{display:block;font-size:13px;letter-spacing:4px;color:var(--muted);font-weight:800}
+.turnbox b{display:block;font-size:clamp(34px,11vw,56px);font-weight:900;color:var(--c);line-height:1.2;margin:2px 0 4px;text-shadow:0 0 22px color-mix(in srgb,var(--c) 50%,transparent)}
+.turnbox span{display:block;font-size:17px;font-weight:800;color:var(--ink)}
+.turnbox em{display:block;margin-top:10px;font-style:normal;font-size:11px;color:var(--muted)}
+.turnbox.out{opacity:0;transition:opacity .25s ease}
+@keyframes tbfade{from{opacity:0}to{opacity:1}}
 /* cards — 블라인드 포커 방식: 3D 뒤집기 + 금색 반짝임 */
 .card{position:relative;min-width:0;width:100%;aspect-ratio:42/60;align-self:start;perspective:600px;container-type:inline-size}
 .card .in{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.3,.7,.2,1)}
@@ -124,6 +138,8 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 .card.neg .front{color:var(--red)}
 .card .back{background:repeating-linear-gradient(45deg,rgba(255,255,255,.07) 0 2px,transparent 2px 10px),repeating-linear-gradient(-45deg,rgba(255,255,255,.07) 0 2px,transparent 2px 10px),linear-gradient(160deg,var(--crimson),var(--crimson-deep));border:1.5px solid rgba(255,255,255,.25)}
 .card.flying .back{box-shadow:0 4px 10px rgba(0,0,0,.5)}
+.card.first .front{box-shadow:inset 0 0 0 2px var(--gold),0 2px 4px rgba(0,0,0,.35);padding-bottom:18cqw}
+.card.first .front::before{content:"공개";position:absolute;left:0;right:0;bottom:0;background:var(--gold);color:#2a1a04;font-size:max(7px,22cqw);font-weight:900;line-height:1.45;text-align:center;letter-spacing:1px}
 .card.secret .front{box-shadow:inset 0 0 0 2px #7fb8ff,0 2px 4px rgba(0,0,0,.35)}
 .card.secret .front::after{content:"🔒";position:absolute;font-size:max(6px,21cqw);top:2px;right:3px}
 .card .gl{position:absolute;inset:-2px;z-index:2;border-radius:9px;padding:2.5px;pointer-events:none;opacity:0;
@@ -278,6 +294,7 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 </div>
 
 <div class="burst" id="burst"></div>
+<div class="turnbox" id="turnBox" hidden><div class="tb"><small>차례</small><b id="tbName"></b><span id="tbWhat"></span><em>화면을 터치하면 바로 시작</em></div></div>
 <div class="modal" id="rulesModal" hidden><div class="mbox">
   <h2>게임 규칙</h2>
   <ul>
@@ -589,7 +606,7 @@ function render(){
     d.root.classList.toggle('turn',S.current===p.id);d.root.classList.toggle('fold',p.folded);
     d.root.classList.toggle('out',out);d.root.classList.toggle('win',wins.includes(p.id));
     // 결과 공개 시 박스 위에 합계·장수 표시
-    if(shown(p)&&p.hand.length){const s=sum(p),bust=s>S.limit;const txt=`합 <b>${s}</b> · ${p.hand.length}장${bust?' 초과':''}`;
+    if(shown(p)&&p.hand.length){const s=sum(p),bust=s>S.limit;const txt=`합 <b>${s}</b>${bust?' 초과':''} · ${p.hand.length}장`;
       if(d.res.hidden||d.res.innerHTML!==txt){d.res.innerHTML=txt}d.res.hidden=false;d.res.classList.toggle('bust',bust);d.res.classList.toggle('win',wins.includes(p.id))}
     else d.res.hidden=true;
     d.cards.style.setProperty('--cols',p.hand.length<=6?Math.max(3,p.hand.length):Math.ceil(p.hand.length/2)); // 7장부터 두 줄 (윗줄이 더 많게)
@@ -604,6 +621,8 @@ function render(){
       else if(up&&c.open&&!c.wasOpen)shine.push(c.el);
       c.wasOpen=c.open;
       c.el.classList.toggle('secret',up&&!c.open&&!shown(p));
+      // 처음 공개한 카드: 히든 카드와 같이 보일 때(내 패·최종 공개) '공개' 표시
+      c.el.classList.toggle('first',!!c.first&&up&&(canSee(p)||shown(p)));
     });
     // 합계 / 상태
     let sm='';
@@ -641,7 +660,22 @@ function peekBtn(p,redraw){
   const b=el('button',{className:'peek'},p.peek?'🙈 가리기':'👁 내 카드 보기');
   b.onclick=()=>{p.peek=!p.peek;render();redraw()};return b;
 }
-function askReveal(p){
+// 사람이 2명 이상이면 차례가 시작될 때 가운데에 누구 차례인지 크게 알림 (터치하면 바로 닫힘)
+function announceTurn(p,what){
+  if(S.humanCount<2||p.ai)return Promise.resolve();
+  return new Promise(res=>{
+    const box=$('#turnBox');
+    box.querySelector('.tb').style.setProperty('--c',p.color);
+    $('#tbName').textContent=p.name;$('#tbWhat').textContent=what;
+    box.classList.remove('out');box.hidden=false;
+    SFX.crown();
+    let done=false;
+    const close=()=>{if(done)return;done=true;box.classList.add('out');setTimeout(()=>{box.hidden=true;box.classList.remove('out');res()},250)};
+    box.onclick=close;setTimeout(close,1600);
+  });
+}
+async function askReveal(p){
+  await announceTurn(p,'공개할 카드 1장 선택');
   return showAction((box,done,redraw)=>{
     box.append(el('div',{className:'ttl'},`${p.name} — 공개할 카드 1장을 고르세요`));
     const row=el('div',{className:'pickrow'});
@@ -651,7 +685,8 @@ function askReveal(p){
     const acts=el('div',{className:'acts'});const pb=peekBtn(p,redraw);if(pb)acts.append(pb);box.append(acts);
   });
 }
-function askBet(p,stage){
+async function askBet(p,stage){
+  await announceTurn(p,`${stage}차 베팅`);
   const toCall=S.curBet-p.rb,minR=S.curBet+1,cap=S.cap;
   let amt=Math.min(cap,minR);
   return showAction((box,done,redraw)=>{
@@ -676,7 +711,8 @@ function askBet(p,stage){
     box.append(acts);
   });
 }
-function askHit(p){
+async function askHit(p){
+  await announceTurn(p,'HIT / STAY');
   return showAction((box,done,redraw)=>{
     box.append(el('div',{className:'ttl'},`${p.name} — HIT 또는 STAY`));
     box.append(el('div',{className:'meta'},canSee(p)?`내 합 ${sum(p)} · 카드 ${p.hand.length}장 · 한계 ${S.limit} · 남은 덱 ${S.deck.length}`:`한계 ${S.limit} · 남은 덱 ${S.deck.length} (내 카드 보기로 합 확인)`));
@@ -838,8 +874,14 @@ async function playRound(gid){
     let idx;
     if(p.ai){await wait(500);idx=rnd(3)}else idx=await askReveal(p);
     chk(gid);
-    p.hand[idx].open=true;p.peek=false;render();
-    log(`${p.name} 공개: ${fmt(p.hand[idx].v)}`);await wait(250);
+    p.hand[idx].open=true;p.hand[idx].first=true;p.peek=false;
+    // 공개한 카드를 세 장 중 맨 오른쪽으로 옮김 (자리 이동은 부드럽게)
+    const before=new Map(p.hand.map(c=>[c,c.el.getBoundingClientRect()]));
+    const moved=p.hand.splice(idx,1)[0];p.hand.splice(2,0,moved);
+    render();
+    if(!reduceMotion)p.hand.forEach(c=>{const a=before.get(c),r=c.el.getBoundingClientRect(),dx=a.left-r.left,dy=a.top-r.top;
+      if((dx||dy)&&c.el.animate)c.el.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'none'}],{duration:380,easing:'cubic-bezier(.2,.8,.2,1)'})});
+    log(`${p.name} 공개: ${fmt(moved.v)}`);await wait(250);
   }
   S.current=-1;
 
