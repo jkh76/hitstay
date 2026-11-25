@@ -15,7 +15,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;min-height:100%}
 body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;color:var(--ink);
- background:radial-gradient(ellipse at 50% 0%,#17694c 0%,var(--felt) 45%,var(--felt2) 100%) fixed;padding:12px 12px 210px}
+ background:radial-gradient(ellipse at 50% 0%,#17694c 0%,var(--felt) 45%,var(--felt2) 100%) fixed;padding:12px 12px 16px}
 button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 14px;font-weight:700;color:#1b1b1b;background:#e8e2cf;transition:transform .08s,filter .15s}
 button:active{transform:scale(.96)}button:disabled{opacity:.35;cursor:default}
 .wrap{max-width:900px;margin:0 auto}
@@ -53,7 +53,9 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 .top .btns{display:flex;gap:6px}.top .btns button{padding:7px 10px;font-size:13px;background:rgba(255,255,255,.12);color:var(--ink)}
 /* center */
 #center{display:grid;gap:10px;background:var(--panel);border-radius:16px;padding:10px 12px 12px;margin-bottom:12px}
-.stage{display:flex;align-items:center;justify-content:center;gap:22px}
+.stage{display:flex;align-items:center;justify-content:center;gap:22px;max-height:170px;overflow:hidden;transition:max-height .45s ease,opacity .3s ease,margin .45s ease}
+.stage.gone{max-height:0;opacity:0;margin-bottom:-10px}
+.stat.deckfocus{box-shadow:inset 0 0 0 2px rgba(242,201,76,.6)}
 .dicebox{position:relative;width:150px;height:124px;flex:none}
 #diceCanvas{width:150px;height:124px;display:block}
 .dice2d{position:absolute;inset:16px 33px;display:flex;align-items:center;justify-content:center}
@@ -98,23 +100,32 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 .tag{font-size:10px;padding:2px 5px;border-radius:5px;background:rgba(255,255,255,.15);font-weight:700}
 .tag.sun{background:var(--gold);color:#222}
 .chips{margin-left:auto;font-weight:800;color:var(--gold);white-space:nowrap}
-.cards{display:flex;flex-wrap:wrap;gap:5px;min-height:62px}
+/* 카드 6장까지 한 줄, 7장부터 두 줄. 칸이 모자라면 카드가 작아짐 */
+.cards{--cw:42px;--cols:3;display:grid;grid-template-columns:repeat(var(--cols),minmax(0,var(--cw)));justify-content:start;gap:5px;min-height:62px;min-width:0}
 .pf{display:flex;justify-content:space-between;gap:6px;margin-top:8px;font-size:12px;color:var(--muted)}
 .pf .st{font-weight:800;color:var(--ink)}
 .pf .bust{color:var(--red);font-weight:800}
 .bet{position:absolute;top:-10px;right:10px;background:var(--gold);color:#222;font-size:11px;font-weight:800;padding:2px 7px;border-radius:10px}
 .bet[hidden]{display:none}
+.res{position:absolute;top:-16px;left:50%;transform:translateX(-50%);z-index:3;white-space:nowrap;background:#123d2e;border:2px solid var(--muted);color:var(--ink);font-size:13px;font-weight:800;padding:2px 10px;border-radius:12px;box-shadow:0 3px 8px rgba(0,0,0,.4);animation:respop .35s cubic-bezier(.2,1.5,.4,1) both}
+.res b{font-size:15px}
+.res.win{background:var(--gold);border-color:#fff3c4;color:#2a1a04}
+.res.bust{background:#5c1d22;border-color:var(--red);color:#ffd6d8}
+@keyframes respop{0%{transform:translateX(-50%) scale(.3);opacity:0}100%{transform:translateX(-50%) scale(1);opacity:1}}
+#players{row-gap:18px}
 /* cards — 블라인드 포커 방식: 3D 뒤집기 + 금색 반짝임 */
-.card{position:relative;width:42px;height:60px;perspective:600px;flex:none}
+.card{position:relative;min-width:0;width:100%;aspect-ratio:42/60;align-self:start;perspective:600px;container-type:inline-size}
 .card .in{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.3,.7,.2,1)}
 .card.up .in{transform:rotateY(180deg)}
-.card .face{position:absolute;inset:0;border-radius:7px;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden}
-.card .front{transform:rotateY(180deg);background:var(--cardc);color:#1e2a3a;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;box-shadow:0 2px 4px rgba(0,0,0,.35)}
+/* 뒤집힌 뒤에는 3D를 풀어 어떤 기기에서도 앞면이 확실히 보이게 */
+.card.flat .in{transform:none;transition:none}.card.flat .front{transform:none}.card.flat .back{display:none}
+.card .face{position:absolute;inset:0;border-radius:min(7px,16cqw);backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden}
+.card .front{transform:rotateY(180deg);background:var(--cardc);color:#1e2a3a;display:flex;align-items:center;justify-content:center;font-size:57cqw;font-weight:900;box-shadow:0 2px 4px rgba(0,0,0,.35)}
 .card.neg .front{color:var(--red)}
 .card .back{background:repeating-linear-gradient(45deg,rgba(255,255,255,.07) 0 2px,transparent 2px 10px),repeating-linear-gradient(-45deg,rgba(255,255,255,.07) 0 2px,transparent 2px 10px),linear-gradient(160deg,var(--crimson),var(--crimson-deep));border:1.5px solid rgba(255,255,255,.25)}
 .card.flying .back{box-shadow:0 4px 10px rgba(0,0,0,.5)}
 .card.secret .front{box-shadow:inset 0 0 0 2px #7fb8ff,0 2px 4px rgba(0,0,0,.35)}
-.card.secret .front::after{content:"🔒";position:absolute;font-size:9px;top:2px;right:3px}
+.card.secret .front::after{content:"🔒";position:absolute;font-size:max(6px,21cqw);top:2px;right:3px}
 .card .gl{position:absolute;inset:-2px;z-index:2;border-radius:9px;padding:2.5px;pointer-events:none;opacity:0;
  background:linear-gradient(120deg,transparent 32%,rgba(255,246,210,.95) 46%,#f0c24b 52%,transparent 66%),linear-gradient(rgba(240,194,75,.45),rgba(240,194,75,.45));
  background-size:260% 260%,100% 100%;background-position:100% 100%,0 0;
@@ -191,10 +202,23 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
   #action .acts{gap:6px}#action .acts button{padding:9px 6px;font-size:14px;min-width:70px}
   .stepper{margin-bottom:6px}.stepper button{width:36px;padding:6px 0}.stepper .v{font-size:18px;min-width:40px}
   .pickrow{margin:2px 0}.pickrow .pk{width:42px;height:58px;font-size:22px}
-  #players{gap:8px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  #players{column-gap:8px;row-gap:16px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
   .pl{padding:7px 8px}.ph{margin-bottom:5px}.pf{margin-top:5px}
-  .card{width:34px;height:48px}.card .front{font-size:19px}.cards{min-height:48px;gap:4px}
+  .cards{--cw:34px;min-height:48px;gap:4px}
   .burst span{font-size:clamp(24px,7vh,44px)}
+}
+
+/* ===== 세로 화면: 플레이어 박스를 가로로 길게 (왼쪽 정보 · 오른쪽 카드) ===== */
+@media (orientation: portrait){
+  .cards{gap:4px}
+  #players{grid-template-columns:1fr;row-gap:18px}
+  .pl{display:grid;grid-template-columns:118px minmax(0,1fr);grid-template-areas:"ph cards" "pf cards";column-gap:10px;row-gap:4px;align-items:center;padding:8px 10px;border-top:2px solid transparent;border-left:6px solid var(--c)}
+  .pl.turn,.pl.win{border-left-color:var(--c)}
+  .ph{grid-area:ph;flex-wrap:wrap;margin:0;row-gap:2px;align-self:end}
+  .ph .chips{margin-left:0;flex-basis:100%;font-size:15px}
+  .cards{grid-area:cards;min-height:60px;align-content:center}
+  .pf{grid-area:pf;flex-direction:column;gap:1px;margin:0;align-self:start}
+  .pl.spot{transform:scale(1.02)}
 }
 @media (prefers-reduced-motion: reduce){.card .in{transition:none}.card.glint .gl{animation:none}}
 </style>
@@ -222,7 +246,7 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
   </div>
   <div class="lcol">
   <div id="center">
-    <div class="stage">
+    <div class="stage" id="stageRow">
       <div class="dicebox">
         <canvas id="diceCanvas" hidden></canvas>
         <div class="dice2d" id="dice2d">
@@ -337,6 +361,8 @@ const SFX=(()=>{
     hit:()=>play(()=>tone(520,0,.08,'sawtooth',.06)),
     stay:()=>play(()=>tone(330,0,.12,'sine',.18)),
     fold:()=>play(()=>tone(220,0,.25,'sine',.2,140)),
+    select:()=>play(()=>{tone(620,0,.09,'sine',.25);tone(930,.06,.13,'sine',.22)}),
+    reject:()=>play(()=>{tone(170,0,.14,'square',.1);tone(150,.1,.16,'square',.1)}),
     tick:(k=0)=>play(()=>tone(900+k*25,0,.05,'square',.07)),
     crown:()=>play(()=>{[784,988,1175,1568].forEach((f,i)=>tone(f,i*.09,.25,'triangle',.18));tone(1568,.36,.5,'sine',.12)}),
     turn:()=>play(()=>tone(740,0,.07,'sine',.12)),
@@ -460,7 +486,9 @@ const DEAL_MS=460;
 function flyIn(e){
   SFX.deal(DEAL_MS*.6/1000);
   if(reduceMotion||typeof e.animate!=='function')return;
-  const pr=$('#pile').getBoundingClientRect(),r=e.getBoundingClientRect();
+  // 주사위 줄이 접혀 있으면 '남은 덱' 칸에서 카드가 날아감
+  const src=$('#stageRow').classList.contains('gone')?$('#deckn').closest('.stat'):$('#pile');
+  const pr=src.getBoundingClientRect(),r=e.getBoundingClientRect();
   const dx=pr.left+pr.width/2-(r.left+r.width/2),dy=pr.top+pr.height/2-(r.top+r.height/2);
   const rot=Math.random()*14-7;
   e.style.zIndex='100';e.classList.add('flying');
@@ -501,7 +529,7 @@ $('#rulesBtn0').onclick=$('#rulesBtn').onclick=()=>$('#rulesModal').hidden=false
 $('#sndBtn').onclick=()=>{MUTED=!MUTED;$('#sndBtn').textContent=MUTED?'🔇':'🔊'};
 $('#quitBtn').onclick=()=>{if(confirm('게임을 그만두고 설정 화면으로 갈까요?'))toSetup()};
 $('#againBtn').onclick=()=>{$('#overModal').hidden=true;toSetup()};
-function toSetup(){GAME_ID++;pendingResolve=null;$('#game').hidden=true;$('#action').hidden=true;$('#setup').hidden=false;renderSetup()}
+function toSetup(){GAME_ID++;pendingResolve=null;$('#game').hidden=true;setAction(false);$('#setup').hidden=false;renderSetup()}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button');if(b&&!b.disabled)SFX.click()},true);
 
 // ================= 로그/렌더 =================
@@ -511,12 +539,32 @@ function buildPlayers(){
   const wrap=$('#players');wrap.innerHTML='';
   S.players.forEach(p=>{
     const root=document.createElement('div');root.className='pl';root.style.setProperty('--c',p.color);
-    root.innerHTML=`<div class="bet" hidden></div><div class="ph"><span class="nm"></span><span class="tags"></span><span class="chips"></span></div><div class="cards"></div><div class="pf"><span class="sm"></span><span class="st"></span></div>`;
+    root.innerHTML=`<div class="res" hidden></div><div class="bet" hidden></div><div class="ph"><span class="nm"></span><span class="tags"></span><span class="chips"></span></div><div class="cards"></div><div class="pf"><span class="sm"></span><span class="st"></span></div>`;
     wrap.appendChild(root);
     const q=s=>root.querySelector(s);
-    p.dom={root,bet:q('.bet'),tags:q('.tags'),chips:q('.chips'),cards:q('.cards'),sm:q('.sm'),st:q('.st')};
+    p.dom={root,res:q('.res'),bet:q('.bet'),tags:q('.tags'),chips:q('.chips'),cards:q('.cards'),sm:q('.sm'),st:q('.st')};
     q('.nm').textContent=p.name;
   });
+}
+// 차례인 플레이어 박스로 화면 이동 (아래 행동 바에 가리지 않게)
+let lastFocus=-1,scrollGoal=null,scrollGoalT=0;
+function focusPlayer(id,force){
+  setTimeout(()=>{
+    const p=S.players[id];if(!p||!p.dom)return;
+    const r=p.dom.root.getBoundingClientRect();
+    const act=$('#action');
+    const barH=(!act.hidden&&getComputedStyle(act).position==='fixed')?act.offsetHeight:0;
+    const vh=(window.visualViewport?visualViewport.height:innerHeight)-barH;
+    const topPad=20,now=Date.now();
+    // 아직 진행 중인 스크롤이 있으면 그 도착 위치 기준으로 판단
+    const baseY=(scrollGoal!=null&&now-scrollGoalT<900)?scrollGoal:scrollY;
+    const top=r.top+scrollY-baseY,bottom=top+r.height;
+    if(!force&&top>=topPad&&bottom<=vh-8)return; // 이미 잘 보이면 그대로
+    const maxY=document.documentElement.scrollHeight-innerHeight;
+    const y=Math.min(maxY,Math.max(0,r.top+scrollY-Math.max(topPad,(vh-r.height)/2)));
+    scrollGoal=y;scrollGoalT=now;
+    try{scrollTo({top:y,behavior:reduceMotion?'auto':'smooth'})}catch(e){scrollTo(0,y)}
+  },80);
 }
 function render(){
   $('#rnd').textContent=Math.max(1,S.round);
@@ -530,6 +578,7 @@ function render(){
   $('#phase').textContent=S.phase;
   $('#result').innerHTML=S.result?S.result.msg:'';
   const wins=S.result?S.result.winners:[];
+  if(S.current!==lastFocus){lastFocus=S.current;if(S.current>=0)focusPlayer(S.current)}
   const flipped=[],shine=[];
   S.players.forEach(p=>{
     const d=p.dom;if(!d)return;
@@ -539,13 +588,19 @@ function render(){
     const out=p.chips<=0&&!p.inRound;
     d.root.classList.toggle('turn',S.current===p.id);d.root.classList.toggle('fold',p.folded);
     d.root.classList.toggle('out',out);d.root.classList.toggle('win',wins.includes(p.id));
+    // 결과 공개 시 박스 위에 합계·장수 표시
+    if(shown(p)&&p.hand.length){const s=sum(p),bust=s>S.limit;const txt=`합 <b>${s}</b> · ${p.hand.length}장${bust?' 초과':''}`;
+      if(d.res.hidden||d.res.innerHTML!==txt){d.res.innerHTML=txt}d.res.hidden=false;d.res.classList.toggle('bust',bust);d.res.classList.toggle('win',wins.includes(p.id))}
+    else d.res.hidden=true;
+    d.cards.style.setProperty('--cols',p.hand.length<=6?Math.max(3,p.hand.length):Math.ceil(p.hand.length/2)); // 7장부터 두 줄 (윗줄이 더 많게)
     // 카드 DOM 유지 (애니메이션이 끊기지 않도록)
     const els=p.hand.map(c=>c.el||makeCardEl(c));
     [...d.cards.children].forEach(ch=>{if(!els.includes(ch))ch.remove()});
     els.forEach((e,i)=>{if(d.cards.children[i]!==e)d.cards.insertBefore(e,d.cards.children[i]||null)});
     p.hand.forEach(c=>{
       const up=!c.hold&&(c.open||shown(p)||canSee(p));
-      if(up!==!!c.up){c.up=up;c.el.classList.toggle('up',up);if(up)flipped.push(c.el)}
+      if(up!==!!c.up){c.up=up;c.el.classList.toggle('up',up);
+        if(up){flipped.push(c.el);const ce=c;setTimeout(()=>{if(ce.up)ce.el.classList.add('flat')},620)}else c.el.classList.remove('flat')}
       else if(up&&c.open&&!c.wasOpen)shine.push(c.el);
       c.wasOpen=c.open;
       c.el.classList.toggle('secret',up&&!c.open&&!shown(p));
@@ -565,11 +620,19 @@ function render(){
 
 // ================= 사람 입력 =================
 let pendingResolve=null;
+// 아래 고정 버튼 바가 있을 때만 그 높이만큼 아래 여백을 둠 (맨 아래 플레이어 밑에 빈 공간이 생기지 않게)
+function fitPad(){
+  const act=$('#action');
+  const fixed=!act.hidden&&getComputedStyle(act).position==='fixed';
+  document.body.style.paddingBottom=fixed?(act.offsetHeight+10)+'px':'';
+}
+function setAction(v){$('#action').hidden=!v;fitPad()}
+addEventListener('resize',fitPad);
 function showAction(builder){
   return new Promise(res=>{
     pendingResolve=res;
-    const draw=()=>{const box=$('#actIn');box.innerHTML='';builder(box,v=>{if(pendingResolve!==res)return;pendingResolve=null;$('#action').hidden=true;res(v)},draw)};
-    $('#action').hidden=false;draw();SFX.turn();
+    const draw=()=>{const box=$('#actIn');box.innerHTML='';builder(box,v=>{if(pendingResolve!==res)return;pendingResolve=null;setAction(false);res(v)},draw)};
+    setAction(true);draw();fitPad();SFX.turn();
   });
 }
 function el(tag,attrs={},html=''){const e=document.createElement(tag);Object.assign(e,attrs);if(html)e.innerHTML=html;return e}
@@ -583,7 +646,7 @@ function askReveal(p){
     box.append(el('div',{className:'ttl'},`${p.name} — 공개할 카드 1장을 고르세요`));
     const row=el('div',{className:'pickrow'});
     p.hand.forEach((c,i)=>{const sh=canSee(p);const d=el('div',{className:'pk'+(sh?(c.v<0?' neg':''):' bk')},sh?String(c.v):'');
-      d.onclick=()=>{if(!canSee(p)){alert('먼저 "내 카드 보기"를 눌러 확인하세요');return}p.peek=false;done(i)};row.append(d)});
+      d.onclick=()=>{if(!canSee(p)){SFX.reject();alert('먼저 "내 카드 보기"를 눌러 확인하세요');return}SFX.select();p.peek=false;done(i)};row.append(d)});
     box.append(row);
     const acts=el('div',{className:'acts'});const pb=peekBtn(p,redraw);if(pb)acts.append(pb);box.append(acts);
   });
@@ -743,6 +806,9 @@ async function playRound(gid){
   S.players.forEach(p=>{p.hand=[];p.folded=false;p.stayed=false;p.rb=0;p.inRound=p.chips>0;p.peek=false;p.revealed=false;p.lastAction=''});
   S.starter=nextAliveFrom(S.starter);
   S.deck=makeDeck();$('#diceNum').textContent='?';
+  $('#stageRow').classList.remove('gone');
+  // 새 라운드: 주사위가 보이도록 맨 위로
+  scrollGoal=0;scrollGoalT=Date.now();try{scrollTo({top:0,behavior:reduceMotion?'auto':'smooth'})}catch(e){scrollTo(0,0)}
   log(`라운드 ${S.round} · 기본 베팅 ${ante}칩 · 선 ${S.players[S.starter].name}`,'r');
   if(S.round>1&&(S.round-1)%10===0)log(`⬆️ 기본 베팅이 ${ante}칩으로 올랐습니다`);
   setPhase(`기본 베팅 ${ante}칩`);
@@ -753,7 +819,9 @@ async function playRound(gid){
   setPhase('🎲 주사위를 굴립니다…');
   await rollDice(gid);
   log(`🎲 한계숫자 <b>${S.limit}</b>`);
-  setPhase(`한계숫자 ${S.limit}! 카드를 나눠 줍니다`);await wait(500);chk(gid);
+  await wait(700);chk(gid);
+  $('#stageRow').classList.add('gone'); // 주사위 줄 접기
+  setPhase(`한계숫자 ${S.limit}! 카드를 나눠 줍니다`);await sleep(450);await wait(500);chk(gid);
 
   // 덱에서 한 장씩 날아가며 3장씩 배분
   for(let k=0;k<3;k++)for(const p of order()){
@@ -819,8 +887,9 @@ async function hitPhase(gid){
       else ch=await askHit(p);
       chk(gid);
       if(ch==='hit'){
-        const c={v:S.deck.pop(),open:true,hold:true};p.hand.push(c);p.lastAction='HIT';SFX.hit();render();flyIn(c.el);
-        await sleep(DEAL_MS);chk(gid);c.hold=false;render(); // 착지 후 앞면으로 뒤집힘
+        const c={v:S.deck.pop(),open:true,wasOpen:true,up:true};makeCardEl(c);c.el.classList.add('up','flat'); // HIT 카드는 앞면으로 날아감
+        p.hand.push(c);p.lastAction='HIT';SFX.hit();render();flyIn(c.el);
+        await sleep(DEAL_MS);chk(gid);glint([c.el]);render();
         log(`${p.name} HIT → ${fmt(c.v)}`);
       }else{p.stayed=true;SFX.stay();log(`${p.name} STAY`);render()}
       await wait(350);
@@ -845,7 +914,7 @@ async function showdown(gid){
   S.showdown=true;S.current=-1;
   setPhase('🃏 카드 공개!');
   const c=order();
-  for(const p of c){p.revealed=true;render();await wait(450);chk(gid)} // 한 명씩 뒤집기
+  for(const p of c){p.revealed=true;render();focusPlayer(p.id);await wait(550);chk(gid)} // 한 명씩 뒤집기
   const res=c.map(p=>({p,s:sum(p),n:p.hand.length,bust:sum(p)>S.limit}));
   res.forEach(r=>log(`${r.p.name}: [${r.p.hand.map(x=>fmt(x.v)).join(', ')}] = ${r.s}${r.bust?' <span style="color:#ff7b7f">초과</span>':''}`));
   const valid=res.filter(r=>!r.bust);let winners,msg;const pot=S.pot;
@@ -873,7 +942,7 @@ async function afterRound(gid){
   S.players.forEach(p=>{if(p.chips<=0)p.inRound=false});
 }
 function gameOver(){
-  S.current=-1;render();$('#action').hidden=true;
+  S.current=-1;render();setAction(false);
   const ranked=[...S.players].sort((a,b)=>b.chips-a.chips||b.outRound-a.outRound);
   $('#overTitle').textContent=alive().length<2?`🏆 ${ranked[0].name} 최종 우승!`:'게임 종료';
   $('#overList').innerHTML=`<div class="hint" style="margin-bottom:8px">총 ${S.round}라운드</div>`+ranked.map((p,i)=>`<div class="rank"><span class="n">${i+1}</span><span class="dot" style="background:${p.color}"></span><b>${p.name}</b>${p.ai?'<span class="tag">AI</span>':''}<span style="margin-left:auto;color:var(--gold);font-weight:800">${p.chips>0?`🪙 ${p.chips}`:`${p.outRound}R 탈락`}</span></div>`).join('');
