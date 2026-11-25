@@ -546,7 +546,7 @@ $('#rulesBtn0').onclick=$('#rulesBtn').onclick=()=>$('#rulesModal').hidden=false
 $('#sndBtn').onclick=()=>{MUTED=!MUTED;$('#sndBtn').textContent=MUTED?'🔇':'🔊'};
 $('#quitBtn').onclick=()=>{if(confirm('게임을 그만두고 설정 화면으로 갈까요?'))toSetup()};
 $('#againBtn').onclick=()=>{$('#overModal').hidden=true;toSetup()};
-function toSetup(){GAME_ID++;pendingResolve=null;$('#game').hidden=true;setAction(false);$('#setup').hidden=false;renderSetup()}
+function toSetup(){GAME_ID++;keepAwake(false);pendingResolve=null;$('#game').hidden=true;setAction(false);$('#setup').hidden=false;renderSetup()}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button');if(b&&!b.disabled)SFX.click()},true);
 
 // ================= 로그/렌더 =================
@@ -772,8 +772,21 @@ function aiHit(p){
 }
 
 // ================= 게임 진행 =================
+// ===== 게임 중 화면 꺼짐 방지 (Screen Wake Lock) =====
+let wakeLock=null,wakeWanted=false;
+async function keepAwake(on){
+  wakeWanted=on;
+  try{
+    if(on&&!wakeLock&&'wakeLock' in navigator&&document.visibilityState==='visible'){
+      wakeLock=await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release',()=>{wakeLock=null});
+    }else if(!on&&wakeLock){await wakeLock.release();wakeLock=null}
+  }catch(e){wakeLock=null}
+}
+// 앱을 잠깐 나갔다 오면 잠금이 풀리므로 다시 요청
+document.addEventListener('visibilitychange',()=>{if(wakeWanted&&document.visibilityState==='visible')keepAwake(true)});
 function startGame(cfg){
-  GAME_ID++;
+  GAME_ID++;keepAwake(true);
   S.players=cfg.map((c,i)=>({id:i,name:c.name,ai:c.ai,chips:30,hand:[],folded:false,stayed:false,rb:0,inRound:false,peek:false,revealed:false,color:COLORS[i],lastAction:'',outRound:0,style:Math.random()*2-1}));
   S.humanCount=cfg.filter(c=>!c.ai).length;
   S.round=0;S.starter=rnd(S.players.length);S.pot=0;S.limit=null;S.result=null;S.showdown=false;S.deck=makeDeck();S.cap=0;S.curBet=0;S.current=-1;
