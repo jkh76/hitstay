@@ -120,6 +120,14 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 .bet[hidden]{display:none}
 .res{position:absolute;top:-16px;left:50%;transform:translateX(-50%);z-index:3;white-space:nowrap;background:#123d2e;border:2px solid var(--muted);color:var(--ink);font-size:13px;font-weight:800;padding:2px 10px;border-radius:12px;box-shadow:0 3px 8px rgba(0,0,0,.4);animation:respop .35s cubic-bezier(.2,1.5,.4,1) both}
 .res b{font-size:15px}
+.act{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:4;pointer-events:none;white-space:nowrap;background:rgba(18,61,46,.6);text-shadow:0 1px 3px rgba(0,0,0,.6);border:2px solid var(--muted);color:var(--ink);font-size:17px;font-weight:900;padding:5px 16px;border-radius:16px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.act.pop{animation:actpop .35s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes actpop{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+.act b{font-size:20px}
+.act.raise{background:rgba(242,201,76,.7);border-color:#fff3c4;color:#2a1a04;text-shadow:0 1px 2px rgba(255,255,255,.5)}
+.act.call{background:rgba(232,226,207,.7);border-color:#fff;color:#1b1b1b;text-shadow:0 1px 2px rgba(255,255,255,.5)}
+.act.check{background:rgba(36,86,74,.62);border-color:#7fb8a5}
+.act.fold{background:rgba(58,29,32,.62);border-color:#8a3b42;color:#ffd0d4}
 .res.win{background:var(--gold);border-color:#fff3c4;color:#2a1a04}
 .res.bust{background:#5c1d22;border-color:var(--red);color:#ffd6d8}
 @keyframes respop{0%{transform:translateX(-50%) scale(.3);opacity:0}100%{transform:translateX(-50%) scale(1);opacity:1}}
@@ -156,7 +164,8 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 .card.glint .gl{animation:glint .8s ease-out .26s both}
 @keyframes glint{0%{opacity:0;background-position:100% 100%,0 0}18%{opacity:1}78%{opacity:1}100%{opacity:0;background-position:0% 0%,0 0}}
 /* action */
-#action{position:fixed;left:0;right:0;bottom:0;background:rgba(5,25,18,.96);border-top:1px solid #2f7a5e;padding:12px 12px calc(12px + env(safe-area-inset-bottom));backdrop-filter:blur(6px);z-index:150}
+/* 행동 패널: 화면에 덮이지 않고 맨 아래 플레이어 바로 아래에 놓임 */
+#action{background:rgba(5,25,18,.9);border:1px solid #2f7a5e;border-radius:14px;padding:12px;margin-top:12px}
 #action .in2{max-width:900px;margin:0 auto}
 #action .ttl{font-weight:800;margin-bottom:4px}
 #action .meta{color:var(--muted);font-size:13px;margin-bottom:10px}
@@ -165,6 +174,10 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 .b-fold{background:#6b2a2f!important;color:#fff!important}
 .b-raise{background:var(--gold)}
 .b-hit{background:#ff8a3d}.b-stay{background:#7fb8ff}
+.mini{display:flex;gap:4px;align-items:center;margin:-4px 0 10px;flex-wrap:wrap}
+.mini>span{font-size:12px;color:var(--muted);margin-right:2px}
+.mini i{font-style:normal;width:24px;height:33px;border-radius:5px;background:var(--cardc);color:#1e2a3a;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900}
+.mini i.neg{color:var(--red)}.mini i.h{box-shadow:inset 0 0 0 2px #7fb8ff}.mini i.f{box-shadow:inset 0 0 0 2px var(--gold)}
 .stepper{display:flex;align-items:center;gap:6px;margin-bottom:10px}
 .stepper button{width:44px;padding:10px 0;background:rgba(255,255,255,.15);color:var(--ink)}
 .stepper .v{min-width:60px;text-align:center;font-size:22px;font-weight:900;color:var(--gold)}
@@ -200,7 +213,7 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
   .lcol::-webkit-scrollbar{display:none}
   .rcol{grid-area:right;display:block;min-width:0}
   #center{margin-bottom:0}
-  #action{position:static;background:var(--panel);border:1px solid #2f7a5e;border-radius:14px;padding:10px 12px;backdrop-filter:none;z-index:auto}
+  #action{background:var(--panel);padding:10px 12px;margin-top:0}
   #action .in2{max-width:none}
   #players{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
   #logbox{margin-top:10px}
@@ -232,6 +245,11 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 
 /* ===== 세로 화면: 플레이어 박스를 가로로 길게 (왼쪽 정보 · 오른쪽 카드) ===== */
 @media (orientation: portrait){
+  #game:not([hidden]){display:flex;flex-direction:column}
+  #game .top{order:0}#center{order:1}#players{order:2}#action{order:3}#logbox{order:4}
+  /* 내 차례 행동 패널은 내 플레이어 박스 바로 아래 */
+  #players>#action{grid-column:1/-1;margin-top:-8px;order:0}
+  #players>#action .mini{display:none} /* 바로 위에 내 카드가 보이므로 숨김 */
   .cards{gap:4px}
   #players{grid-template-columns:1fr;row-gap:18px}
   .pl{display:grid;grid-template-columns:118px minmax(0,1fr);grid-template-areas:"ph cards" "pf cards";column-gap:10px;row-gap:4px;align-items:center;padding:8px 10px;border-top:2px solid transparent;border-left:6px solid var(--c)}
@@ -562,22 +580,20 @@ function buildPlayers(){
   const wrap=$('#players');wrap.innerHTML='';
   S.players.forEach(p=>{
     const root=document.createElement('div');root.className='pl';root.style.setProperty('--c',p.color);
-    root.innerHTML=`<div class="res" hidden></div><div class="bet" hidden></div><div class="ph"><span class="nm"></span><span class="tags"></span><span class="chips"></span></div><div class="cards"></div><div class="pf"><span class="sm"></span><span class="st"></span></div>`;
+    root.innerHTML=`<div class="res" hidden></div><div class="act" hidden></div><div class="bet" hidden></div><div class="ph"><span class="nm"></span><span class="tags"></span><span class="chips"></span></div><div class="cards"></div><div class="pf"><span class="sm"></span><span class="st"></span></div>`;
     wrap.appendChild(root);
     const q=s=>root.querySelector(s);
-    p.dom={root,res:q('.res'),bet:q('.bet'),tags:q('.tags'),chips:q('.chips'),cards:q('.cards'),sm:q('.sm'),st:q('.st')};
+    p.dom={root,res:q('.res'),act:q('.act'),bet:q('.bet'),tags:q('.tags'),chips:q('.chips'),cards:q('.cards'),sm:q('.sm'),st:q('.st')};
     q('.nm').textContent=p.name;
   });
 }
-// 차례인 플레이어 박스로 화면 이동 (아래 행동 바에 가리지 않게)
+// 차례인 플레이어 박스가 안 보이면 그 박스로 화면 이동
 let lastFocus=-1,scrollGoal=null,scrollGoalT=0;
 function focusPlayer(id,force){
   setTimeout(()=>{
     const p=S.players[id];if(!p||!p.dom)return;
     const r=p.dom.root.getBoundingClientRect();
-    const act=$('#action');
-    const barH=(!act.hidden&&getComputedStyle(act).position==='fixed')?act.offsetHeight:0;
-    const vh=(window.visualViewport?visualViewport.height:innerHeight)-barH;
+    const vh=window.visualViewport?visualViewport.height:innerHeight;
     const topPad=20,now=Date.now();
     // 아직 진행 중인 스크롤이 있으면 그 도착 위치 기준으로 판단
     const baseY=(scrollGoal!=null&&now-scrollGoalT<900)?scrollGoal:scrollY;
@@ -607,7 +623,17 @@ function render(){
     const d=p.dom;if(!d)return;
     d.chips.textContent='🪙 '+p.chips;
     d.tags.innerHTML=(p.ai?'<span class="tag">AI</span>':'')+(S.starter===p.id&&!S.picking?'<span class="tag sun">선</span>':'');
-    d.bet.hidden=!(p.rb>0&&!S.showdown);d.bet.textContent=p.rb+'칩';
+    d.bet.hidden=true; // 베팅 금액은 박스 위 배지에 표시
+    // 베팅 중: 박스 위 가운데에 각자의 행동(베팅·레이즈·콜·체크·폴드) 표시
+    let act='',cls='';const la=p.lastAction||'';
+    if(S.cap>0&&!S.showdown&&p.inRound){
+      if(p.folded){act='폴드';cls='fold'}
+      else if(/^베팅|^레이즈/.test(la)){act=`🪙 ${la.replace(/\d+/,'<b>$&</b>')}`;cls='raise'}
+      else if(/^콜/.test(la)){act=`🪙 콜 <b>${p.rb}</b>`;cls='call'}
+      else if(la==='체크'){act='체크';cls='check'}
+    }
+    if(act){if(d.act.innerHTML!==act){d.act.innerHTML=act;d.act.className='act '+cls;void d.act.offsetWidth;d.act.classList.add('pop')}d.act.hidden=false}
+    else d.act.hidden=true;
     const out=p.chips<=0&&!p.inRound;
     d.root.classList.toggle('turn',S.current===p.id);d.root.classList.toggle('fold',p.folded);
     d.root.classList.toggle('out',out);d.root.classList.toggle('win',wins.includes(p.id));
@@ -645,19 +671,44 @@ function render(){
 
 // ================= 사람 입력 =================
 let pendingResolve=null;
-// 아래 고정 버튼 바가 있을 때만 그 높이만큼 아래 여백을 둠 (맨 아래 플레이어 밑에 빈 공간이 생기지 않게)
-function fitPad(){
+// 행동 패널이 뜬 뒤: 패널이 화면 안에 다 보이게 하고,
+// 가능하면 차례인 플레이어(결과 때는 승자) 박스도 함께 보이게 스크롤
+function fitView(){
   const act=$('#action');
-  const fixed=!act.hidden&&getComputedStyle(act).position==='fixed';
-  document.body.style.paddingBottom=fixed?(act.offsetHeight+10)+'px':'';
+  if(act.hidden)return;
+  try{if(matchMedia('(orientation: landscape) and (min-width: 640px)').matches)return}catch(e){} // 가로는 왼쪽 단에 고정
+  const now=Date.now(),base=(scrollGoal!=null&&now-scrollGoalT<900)?scrollGoal:scrollY;
+  const vh=window.visualViewport?visualViewport.height:innerHeight;
+  const abs=el=>{const r=el.getBoundingClientRect();return{top:r.top+scrollY,bottom:r.bottom+scrollY}};
+  const ids=S.current>=0?[S.current]:(S.result?S.result.winners:[]);
+  const keys=ids.map(id=>S.players[id]&&S.players[id].dom&&S.players[id].dom.root).filter(Boolean);
+  const lo=abs(act).bottom+10-vh;                                    // 패널이 보이려면 최소 이만큼 내려가야 함
+  const hi=keys.length?Math.min(...keys.map(k=>abs(k).top-16)):Infinity; // 핵심 박스가 보이려면 이보다 덜 내려가야 함
+  let target=lo>hi?lo:Math.min(Math.max(base,lo),hi);               // 둘 다 안 되면 행동 패널 우선
+  const maxY=document.documentElement.scrollHeight-innerHeight;
+  target=Math.max(0,Math.min(maxY,target));
+  if(Math.abs(target-base)<2)return;
+  scrollGoal=target;scrollGoalT=now;
+  try{scrollTo({top:target,behavior:reduceMotion?'auto':'smooth'})}catch(e){scrollTo(0,target)}
 }
-function setAction(v){$('#action').hidden=!v;fitPad()}
-addEventListener('resize',fitPad);
-function showAction(builder){
+function setAction(v){$('#action').hidden=!v}
+// 행동 패널 위치: 세로 화면이면 그 플레이어 박스 바로 아래, 아니면 원래 자리
+let actionOwner=null;
+const isPortrait=()=>{try{return matchMedia('(orientation: portrait)').matches}catch(e){return false}};
+function placeAction(){
+  const act=$('#action'),p=actionOwner;
+  if(isPortrait()){
+    if(p&&p.dom){if(p.dom.root.nextElementSibling!==act)p.dom.root.after(act)}
+    else if($('#players').nextElementSibling!==act)$('#players').after(act);
+  }else if(act.parentElement!==$('.lcol'))$('.lcol').appendChild(act);
+}
+addEventListener('resize',placeAction);
+function showAction(builder,owner=null){
+  actionOwner=owner;placeAction();
   return new Promise(res=>{
     pendingResolve=res;
     const draw=()=>{const box=$('#actIn');box.innerHTML='';builder(box,v=>{if(pendingResolve!==res)return;pendingResolve=null;setAction(false);res(v)},draw)};
-    setAction(true);draw();fitPad();SFX.turn();
+    setAction(true);draw();setTimeout(fitView,110);SFX.turn();
   });
 }
 function el(tag,attrs={},html=''){const e=document.createElement(tag);Object.assign(e,attrs);if(html)e.innerHTML=html;return e}
@@ -680,6 +731,12 @@ function announceTurn(p,what){
     box.onclick=close;setTimeout(close,1600);
   });
 }
+// 행동 패널 안에 내 카드를 작게 보여 줌 (내 박스가 화면 위로 벗어나 있어도 확인 가능)
+function miniHand(p){
+  if(!canSee(p))return null;
+  const d=el('div',{className:'mini'},'<span>내 카드</span>'+p.hand.map(c=>`<i class="${c.v<0?'neg ':''}${!c.open?'h':c.first?'f':''}">${c.v}</i>`).join(''));
+  return d;
+}
 async function askReveal(p){
   await announceTurn(p,'공개할 카드 1장 선택');
   return showAction((box,done,redraw)=>{
@@ -689,7 +746,7 @@ async function askReveal(p){
       d.onclick=()=>{if(!canSee(p)){SFX.reject();alert('먼저 "내 카드 보기"를 눌러 확인하세요');return}SFX.select();p.peek=false;done(i)};row.append(d)});
     box.append(row);
     const acts=el('div',{className:'acts'});const pb=peekBtn(p,redraw);if(pb)acts.append(pb);box.append(acts);
-  });
+  },p);
 }
 async function askBet(p,stage){
   await announceTurn(p,`${stage}차 베팅`);
@@ -697,7 +754,9 @@ async function askBet(p,stage){
   let amt=Math.min(cap,minR);
   return showAction((box,done,redraw)=>{
     box.append(el('div',{className:'ttl'},`${p.name} — ${stage}차 베팅`));
+    const mh0=miniHand(p);
     box.append(el('div',{className:'meta'},`현재 베팅 ${S.curBet} · 콜 필요 ${toCall} · 한도 ${cap} · 내 칩 ${p.chips}`+(canSee(p)?` · 내 합 ${sum(p)} / 한계 ${S.limit}`:'')));
+    if(mh0)box.append(mh0);
     let rb=null;
     if(S.curBet<cap){
       const st=el('div',{className:'stepper'});
@@ -715,18 +774,19 @@ async function askBet(p,stage){
     if(rb)acts.append(rb);
     const pb=peekBtn(p,redraw);if(pb)acts.append(pb);
     box.append(acts);
-  });
+  },p);
 }
 async function askHit(p){
   await announceTurn(p,'HIT / STAY');
   return showAction((box,done,redraw)=>{
     box.append(el('div',{className:'ttl'},`${p.name} — HIT 또는 STAY`));
     box.append(el('div',{className:'meta'},canSee(p)?`내 합 ${sum(p)} · 카드 ${p.hand.length}장 · 한계 ${S.limit} · 남은 덱 ${S.deck.length}`:`한계 ${S.limit} · 남은 덱 ${S.deck.length} (내 카드 보기로 합 확인)`));
+    {const mh=miniHand(p);if(mh)box.append(mh)}
     const acts=el('div',{className:'acts'});
     const h=el('button',{className:'b-hit'},'HIT 🃏');h.onclick=()=>{p.peek=false;done('hit')};
     const s=el('button',{className:'b-stay'},'STAY ✋');s.onclick=()=>{p.peek=false;done('stay')};
     acts.append(h,s);const pb=peekBtn(p,redraw);if(pb)acts.append(pb);box.append(acts);
-  });
+  },p);
 }
 function askNext(label){
   return showAction((box,done)=>{const acts=el('div',{className:'acts'});const b=el('button',{className:'b-raise'},label);b.onclick=()=>done(1);acts.append(b);box.append(acts)});
