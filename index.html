@@ -28,7 +28,9 @@ button:active{transform:scale(.96)}button:disabled{opacity:.35;cursor:default}
 h1{font-size:28px;margin:8px 0 2px;letter-spacing:1px}h1 span{color:var(--gold)}
 .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
 /* setup — 한 화면에 들어오도록 촘촘하게 */
-#setup{padding-bottom:0}
+#setup{padding-bottom:0;max-width:560px;margin:0 auto}
+/* 가로 화면(태블릿 등): 시작 화면을 가운데에 적당한 폭으로 */
+@media (orientation: landscape) and (min-width: 640px){#setup:not([hidden]){min-height:calc(100vh - 30px);min-height:calc(100dvh - 30px);display:flex;flex-direction:column;justify-content:center}}
 body:has(#setup:not([hidden])){padding-bottom:16px}
 .shead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:2px 0 10px}
 .shead h1{margin:0;font-size:24px}.shead .sub{margin:0;font-size:12px}
@@ -174,10 +176,6 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 .b-fold{background:#6b2a2f!important;color:#fff!important}
 .b-raise{background:var(--gold)}
 .b-hit{background:#ff8a3d}.b-stay{background:#7fb8ff}
-.mini{display:flex;gap:4px;align-items:center;margin:-4px 0 10px;flex-wrap:wrap}
-.mini>span{font-size:12px;color:var(--muted);margin-right:2px}
-.mini i{font-style:normal;width:24px;height:33px;border-radius:5px;background:var(--cardc);color:#1e2a3a;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900}
-.mini i.neg{color:var(--red)}.mini i.h{box-shadow:inset 0 0 0 2px #7fb8ff}.mini i.f{box-shadow:inset 0 0 0 2px var(--gold)}
 .stepper{display:flex;align-items:center;gap:6px;margin-bottom:10px}
 .stepper button{width:44px;padding:10px 0;background:rgba(255,255,255,.15);color:var(--ink)}
 .stepper .v{min-width:60px;text-align:center;font-size:22px;font-weight:900;color:var(--gold)}
@@ -207,11 +205,13 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 @media (orientation: landscape) and (min-width: 640px){
   body{padding:10px 14px 14px}
   .wrap{max-width:1500px}
-  #game:not([hidden]){display:grid;grid-template-columns:minmax(300px,36%) 1fr;grid-template-areas:"top top" "left right";column-gap:14px;align-items:start}
+  /* 왼쪽(정보·행동)과 오른쪽(플레이어)이 각자 따로 스크롤 */
+  body:has(#game:not([hidden])){overflow:hidden}
+  #game:not([hidden]){display:grid;grid-template-columns:minmax(300px,36%) 1fr;grid-template-rows:auto minmax(0,1fr);grid-template-areas:"top top" "left right";column-gap:14px;height:calc(100vh - 24px);height:calc(100dvh - 24px)}
   #game .top{grid-area:top}
-  .lcol{grid-area:left;display:flex;flex-direction:column;gap:10px;position:sticky;top:10px;max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px);overflow-y:auto;scrollbar-width:none}
+  .lcol{grid-area:left;display:flex;flex-direction:column;gap:10px;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
   .lcol::-webkit-scrollbar{display:none}
-  .rcol{grid-area:right;display:block;min-width:0}
+  .rcol{grid-area:right;display:block;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:18px 6px 10px;margin-top:-18px;scrollbar-width:thin}
   #center{margin-bottom:0}
   #action{background:var(--panel);padding:10px 12px;margin-top:0}
   #action .in2{max-width:none}
@@ -223,7 +223,8 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
   body{padding:6px 10px 10px}
   .top{margin-bottom:6px}.top .logo{font-size:17px}.top .rlabel{font-size:11px}
   .top .btns button{padding:5px 8px;font-size:12px}
-  .lcol{top:6px;gap:8px;max-height:calc(100vh - 12px);max-height:calc(100dvh - 12px)}
+  #game:not([hidden]){height:calc(100vh - 16px);height:calc(100dvh - 16px)}
+  .lcol{gap:8px}
   #center{padding:6px 8px 8px;gap:6px}
   .stage{gap:16px}
   .dicebox,#diceCanvas{width:100px;height:83px}
@@ -249,7 +250,6 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
   #game .top{order:0}#center{order:1}#players{order:2}#action{order:3}#logbox{order:4}
   /* 내 차례 행동 패널은 내 플레이어 박스 바로 아래 */
   #players>#action{grid-column:1/-1;margin-top:-8px;order:0}
-  #players>#action .mini{display:none} /* 바로 위에 내 카드가 보이므로 숨김 */
   .cards{gap:4px}
   #players{grid-template-columns:1fr;row-gap:18px}
   .pl{display:grid;grid-template-columns:118px minmax(0,1fr);grid-template-areas:"ph cards" "pf cards";column-gap:10px;row-gap:4px;align-items:center;padding:8px 10px;border-top:2px solid transparent;border-left:6px solid var(--c)}
@@ -587,22 +587,31 @@ function buildPlayers(){
     q('.nm').textContent=p.name;
   });
 }
-// 차례인 플레이어 박스가 안 보이면 그 박스로 화면 이동
-let lastFocus=-1,scrollGoal=null,scrollGoalT=0;
+// ===== 스크롤 도우미: 세로 화면은 페이지 전체, 가로 화면은 왼쪽/오른쪽 단이 각자 스크롤 =====
+let lastFocus=-1;
+const isLand=()=>{try{return matchMedia('(orientation: landscape) and (min-width: 640px)').matches}catch(e){return false}};
+const scrollGoals=new Map();
+const sGet=sc=>sc?sc.scrollTop:scrollY;
+const sView=sc=>sc?{top:sc.getBoundingClientRect().top,h:sc.clientHeight}:{top:0,h:window.visualViewport?visualViewport.height:innerHeight};
+const sMax=sc=>sc?sc.scrollHeight-sc.clientHeight:document.documentElement.scrollHeight-innerHeight;
+// 아직 진행 중인 스크롤이 있으면 그 도착 위치를 기준으로 판단
+function sBase(sc){const g=scrollGoals.get(sc||window);return g&&Date.now()-g.t<900?g.y:sGet(sc)}
+function sGo(sc,y){
+  y=Math.max(0,Math.min(sMax(sc),y));
+  if(Math.abs(y-sBase(sc))<2)return;
+  scrollGoals.set(sc||window,{y,t:Date.now()});
+  try{(sc||window).scrollTo({top:y,behavior:reduceMotion?'auto':'smooth'})}catch(e){if(sc)sc.scrollTop=y;else scrollTo(0,y)}
+}
+// 요소의 '스크롤 기준 위치'(스크롤 0일 때의 위쪽/아래쪽)
+function sPos(sc,el){const r=el.getBoundingClientRect(),v=sView(sc),cur=sGet(sc);return{top:r.top-v.top+cur,bottom:r.bottom-v.top+cur}}
+// 차례인 플레이어 박스가 안 보이면 그 박스로 이동
 function focusPlayer(id,force){
   setTimeout(()=>{
     const p=S.players[id];if(!p||!p.dom)return;
-    const r=p.dom.root.getBoundingClientRect();
-    const vh=window.visualViewport?visualViewport.height:innerHeight;
-    const topPad=20,now=Date.now();
-    // 아직 진행 중인 스크롤이 있으면 그 도착 위치 기준으로 판단
-    const baseY=(scrollGoal!=null&&now-scrollGoalT<900)?scrollGoal:scrollY;
-    const top=r.top+scrollY-baseY,bottom=top+r.height;
-    if(!force&&top>=topPad&&bottom<=vh-8)return; // 이미 잘 보이면 그대로
-    const maxY=document.documentElement.scrollHeight-innerHeight;
-    const y=Math.min(maxY,Math.max(0,r.top+scrollY-Math.max(topPad,(vh-r.height)/2)));
-    scrollGoal=y;scrollGoalT=now;
-    try{scrollTo({top:y,behavior:reduceMotion?'auto':'smooth'})}catch(e){scrollTo(0,y)}
+    const sc=isLand()?$('.rcol'):null,v=sView(sc),base=sBase(sc),a=sPos(sc,p.dom.root);
+    const topPad=20,top=a.top-base,bottom=a.bottom-base;
+    if(!force&&top>=topPad&&bottom<=v.h-8)return; // 이미 잘 보이면 그대로
+    sGo(sc,a.top-Math.max(topPad,(v.h-(a.bottom-a.top))/2));
   },80);
 }
 function render(){
@@ -676,20 +685,18 @@ let pendingResolve=null;
 function fitView(){
   const act=$('#action');
   if(act.hidden)return;
-  try{if(matchMedia('(orientation: landscape) and (min-width: 640px)').matches)return}catch(e){} // 가로는 왼쪽 단에 고정
-  const now=Date.now(),base=(scrollGoal!=null&&now-scrollGoalT<900)?scrollGoal:scrollY;
-  const vh=window.visualViewport?visualViewport.height:innerHeight;
-  const abs=el=>{const r=el.getBoundingClientRect();return{top:r.top+scrollY,bottom:r.bottom+scrollY}};
   const ids=S.current>=0?[S.current]:(S.result?S.result.winners:[]);
+  if(isLand()){ // 가로: 왼쪽 단은 행동 패널이 보이게, 오른쪽 단은 차례/승자 박스가 보이게 각각 이동
+    const sc=$('.lcol'),v=sView(sc),base=sBase(sc),a=sPos(sc,act);
+    if(a.bottom-base>v.h-6)sGo(sc,a.bottom-v.h+6);
+    if(ids.length)focusPlayer(ids[0]);
+    return;
+  }
+  const v=sView(null),base=sBase(null);
   const keys=ids.map(id=>S.players[id]&&S.players[id].dom&&S.players[id].dom.root).filter(Boolean);
-  const lo=abs(act).bottom+10-vh;                                    // 패널이 보이려면 최소 이만큼 내려가야 함
-  const hi=keys.length?Math.min(...keys.map(k=>abs(k).top-16)):Infinity; // 핵심 박스가 보이려면 이보다 덜 내려가야 함
-  let target=lo>hi?lo:Math.min(Math.max(base,lo),hi);               // 둘 다 안 되면 행동 패널 우선
-  const maxY=document.documentElement.scrollHeight-innerHeight;
-  target=Math.max(0,Math.min(maxY,target));
-  if(Math.abs(target-base)<2)return;
-  scrollGoal=target;scrollGoalT=now;
-  try{scrollTo({top:target,behavior:reduceMotion?'auto':'smooth'})}catch(e){scrollTo(0,target)}
+  const lo=sPos(null,act).bottom+10-v.h;                                      // 패널이 보이려면 최소 이만큼 내려가야 함
+  const hi=keys.length?Math.min(...keys.map(k=>sPos(null,k).top-16)):Infinity; // 핵심 박스가 보이려면 이보다 덜 내려가야 함
+  sGo(null,lo>hi?lo:Math.min(Math.max(base,lo),hi));                         // 둘 다 안 되면 행동 패널 우선
 }
 function setAction(v){$('#action').hidden=!v}
 // 행동 패널 위치: 세로 화면이면 그 플레이어 박스 바로 아래, 아니면 원래 자리
@@ -731,12 +738,6 @@ function announceTurn(p,what){
     box.onclick=close;setTimeout(close,1600);
   });
 }
-// 행동 패널 안에 내 카드를 작게 보여 줌 (내 박스가 화면 위로 벗어나 있어도 확인 가능)
-function miniHand(p){
-  if(!canSee(p))return null;
-  const d=el('div',{className:'mini'},'<span>내 카드</span>'+p.hand.map(c=>`<i class="${c.v<0?'neg ':''}${!c.open?'h':c.first?'f':''}">${c.v}</i>`).join(''));
-  return d;
-}
 async function askReveal(p){
   await announceTurn(p,'공개할 카드 1장 선택');
   return showAction((box,done,redraw)=>{
@@ -754,9 +755,7 @@ async function askBet(p,stage){
   let amt=Math.min(cap,minR);
   return showAction((box,done,redraw)=>{
     box.append(el('div',{className:'ttl'},`${p.name} — ${stage}차 베팅`));
-    const mh0=miniHand(p);
     box.append(el('div',{className:'meta'},`현재 베팅 ${S.curBet} · 콜 필요 ${toCall} · 한도 ${cap} · 내 칩 ${p.chips}`+(canSee(p)?` · 내 합 ${sum(p)} / 한계 ${S.limit}`:'')));
-    if(mh0)box.append(mh0);
     let rb=null;
     if(S.curBet<cap){
       const st=el('div',{className:'stepper'});
@@ -781,7 +780,6 @@ async function askHit(p){
   return showAction((box,done,redraw)=>{
     box.append(el('div',{className:'ttl'},`${p.name} — HIT 또는 STAY`));
     box.append(el('div',{className:'meta'},canSee(p)?`내 합 ${sum(p)} · 카드 ${p.hand.length}장 · 한계 ${S.limit} · 남은 덱 ${S.deck.length}`:`한계 ${S.limit} · 남은 덱 ${S.deck.length} (내 카드 보기로 합 확인)`));
-    {const mh=miniHand(p);if(mh)box.append(mh)}
     const acts=el('div',{className:'acts'});
     const h=el('button',{className:'b-hit'},'HIT 🃏');h.onclick=()=>{p.peek=false;done('hit')};
     const s=el('button',{className:'b-stay'},'STAY ✋');s.onclick=()=>{p.peek=false;done('stay')};
@@ -923,7 +921,7 @@ async function playRound(gid){
   S.deck=makeDeck();$('#diceNum').textContent='?';
   $('#stageRow').classList.remove('gone');
   // 새 라운드: 주사위가 보이도록 맨 위로
-  scrollGoal=0;scrollGoalT=Date.now();try{scrollTo({top:0,behavior:reduceMotion?'auto':'smooth'})}catch(e){scrollTo(0,0)}
+  sGo(null,0);if(isLand()){sGo($('.lcol'),0);sGo($('.rcol'),0)}
   log(`라운드 ${S.round} · 기본 베팅 ${ante}칩 · 선 ${S.players[S.starter].name}`,'r');
   if(S.round>1&&(S.round-1)%10===0)log(`⬆️ 기본 베팅이 ${ante}칩으로 올랐습니다`);
   setPhase(`기본 베팅 ${ante}칩`);
