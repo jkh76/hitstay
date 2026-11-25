@@ -218,6 +218,12 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
   #players{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
   #logbox{margin-top:10px}
 }
+/* 태블릿 가로(높이 넉넉): 인원별 고정 배치 + 카드 크게 */
+@media (orientation: landscape) and (min-width: 640px) and (min-height: 561px){
+  #players[data-n="2"],#players[data-n="4"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #players[data-n="3"],#players[data-n="5"]{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cards{--cw:60px;min-height:86px;justify-content:center} /* 카드를 박스 가운데 정렬 */
+}
 /* 높이가 낮은 가로 화면(폰 가로)은 더 촘촘하게 */
 @media (orientation: landscape) and (min-width: 640px) and (max-height: 560px){
   body{padding:6px 10px 10px}
@@ -577,7 +583,7 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 function log(h,cls=''){const d=document.createElement('div');if(cls)d.className=cls;d.innerHTML=h;const L=$('#log');L.prepend(d);while(L.children.length>300)L.lastChild.remove()}
 function setPhase(t){S.phase=t;render()}
 function buildPlayers(){
-  const wrap=$('#players');wrap.innerHTML='';
+  const wrap=$('#players');wrap.innerHTML='';wrap.dataset.n=S.players.length;
   S.players.forEach(p=>{
     const root=document.createElement('div');root.className='pl';root.style.setProperty('--c',p.color);
     root.innerHTML=`<div class="res" hidden></div><div class="act" hidden></div><div class="bet" hidden></div><div class="ph"><span class="nm"></span><span class="tags"></span><span class="chips"></span></div><div class="cards"></div><div class="pf"><span class="sm"></span><span class="st"></span></div>`;
