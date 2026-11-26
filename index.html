@@ -139,12 +139,14 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 @keyframes respop{0%{transform:translateX(-50%) scale(.3);opacity:0}100%{transform:translateX(-50%) scale(1);opacity:1}}
 #players{row-gap:18px}
 /* 사람 2명 이상일 때 턴 시작 알림 */
-.turnbox{position:fixed;inset:0;z-index:190;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.45);cursor:pointer;animation:tbfade .2s ease both}
+.turnbox{position:fixed;inset:0;z-index:190;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.55);animation:tbfade .2s ease both}
 .turnbox .tb{--c:var(--gold);min-width:min(320px,86vw);text-align:center;padding:18px 26px 14px;border-radius:20px;background:rgba(8,30,22,.94);border:3px solid var(--c);box-shadow:0 0 0 6px color-mix(in srgb,var(--c) 25%,transparent),0 16px 44px rgba(0,0,0,.6);animation:burstpop .42s cubic-bezier(.2,1.5,.4,1) both}
 .turnbox small{display:block;font-size:13px;letter-spacing:4px;color:var(--muted);font-weight:800}
 .turnbox b{display:block;font-size:clamp(34px,11vw,56px);font-weight:900;color:var(--c);line-height:1.2;margin:2px 0 4px;text-shadow:0 0 22px color-mix(in srgb,var(--c) 50%,transparent)}
 .turnbox span{display:block;font-size:17px;font-weight:800;color:var(--ink)}
-.turnbox em{display:block;margin-top:10px;font-style:normal;font-size:11px;color:var(--muted)}
+.turnbox em{display:block;margin-top:8px;font-style:normal;font-size:12px;color:var(--muted)}
+.turnbox .ready{display:block;width:100%;margin-top:14px;padding:13px 18px;font-size:18px;font-weight:900;border-radius:12px;background:var(--c);color:#14261d;box-shadow:0 4px 0 color-mix(in srgb,var(--c) 55%,#000),0 6px 16px rgba(0,0,0,.4)}
+.turnbox .ready:active{transform:translateY(3px);box-shadow:0 1px 0 color-mix(in srgb,var(--c) 55%,#000)}
 .turnbox.out{opacity:0;transition:opacity .25s ease}
 @keyframes tbfade{from{opacity:0}to{opacity:1}}
 /* cards — 블라인드 포커 방식: 3D 뒤집기 + 금색 반짝임 */
@@ -339,7 +341,7 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 </div>
 
 <div class="burst" id="burst"></div>
-<div class="turnbox" id="turnBox" hidden><div class="tb"><small>차례</small><b id="tbName"></b><span id="tbWhat"></span><em>화면을 터치하면 바로 시작</em></div></div>
+<div class="turnbox" id="turnBox" hidden><div class="tb"><small>차례</small><b id="tbName"></b><span id="tbWhat"></span><em>다른 사람은 화면을 보지 마세요</em><button class="ready" id="tbReady">준비 완료</button></div></div>
 <div class="modal" id="rulesModal" hidden><div class="mbox">
   <h2>게임 규칙</h2>
   <ul>
@@ -591,7 +593,7 @@ $('#rulesBtn0').onclick=$('#rulesBtn').onclick=()=>$('#rulesModal').hidden=false
 $('#sndBtn').onclick=()=>{MUTED=!MUTED;$('#sndBtn').textContent=MUTED?'🔇':'🔊'};
 $('#quitBtn').onclick=()=>{if(confirm('게임을 그만두고 설정 화면으로 갈까요?'))toSetup()};
 $('#againBtn').onclick=()=>{$('#overModal').hidden=true;toSetup()};
-function toSetup(){GAME_ID++;keepAwake(false);pendingResolve=null;$('#game').hidden=true;setAction(false);$('#setup').hidden=false;renderSetup()}
+function toSetup(){GAME_ID++;keepAwake(false);pendingResolve=null;$('#turnBox').hidden=true;$('#game').hidden=true;setAction(false);$('#setup').hidden=false;renderSetup()}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button');if(b&&!b.disabled)SFX.click()},true);
 
 // ================= 로그/렌더 =================
@@ -756,7 +758,8 @@ function announceTurn(p,what){
     SFX.crown();
     let done=false;
     const close=()=>{if(done)return;done=true;box.classList.add('out');setTimeout(()=>{box.hidden=true;box.classList.remove('out');res()},250)};
-    box.onclick=close;setTimeout(close,1600);
+    const btn=$('#tbReady');btn.onclick=close;box.onclick=null; // 준비 완료 버튼을 눌러야 다음 단계로
+    setTimeout(()=>{try{btn.focus({preventScroll:true})}catch(e){}},50);
   });
 }
 async function askReveal(p){
