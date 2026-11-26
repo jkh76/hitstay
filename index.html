@@ -90,7 +90,11 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 #players{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
 .pl{background:var(--panel);border-radius:14px;padding:10px;border:2px solid transparent;border-top:4px solid var(--c);transition:border-color .2s,opacity .2s,box-shadow .2s;position:relative}
 .pl.turn{border-color:var(--gold);box-shadow:0 0 18px rgba(242,201,76,.45)}
-.pl.fold{opacity:.45}.pl.out{opacity:.25}
+/* 팟 → 승자 포커칩 */
+.pchip{position:fixed;left:0;top:0;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;z-index:150;pointer-events:none;will-change:transform;
+  background:radial-gradient(circle,#f7d978 0 30%,#b8901f 31% 36%,var(--crimson,#b3263a) 37% 100%);border:3px dashed #fff;box-shadow:0 3px 7px rgba(0,0,0,.55),inset 0 0 0 1px rgba(0,0,0,.25)}
+.chips.gain{display:inline-block}
+.pl.fold{opacity:.45}.pl.out{opacity:.25;order:1} /* 탈락한 플레이어는 맨 아래로 */
 .pl{transition:border-color .2s,opacity .2s,box-shadow .2s,transform .15s}
 .pl.spot{border-color:var(--gold);box-shadow:0 0 24px rgba(242,201,76,.75);transform:scale(1.04)}
 .pl.chosen{animation:chosen .45s ease-in-out 3}
@@ -667,7 +671,7 @@ function render(){
     if(shown(p)&&p.hand.length){const s=sum(p),bust=s>S.limit;const txt=`합 <b>${s}</b>${bust?' 초과':''} · ${p.hand.length}장`;
       if(d.res.hidden||d.res.innerHTML!==txt){d.res.innerHTML=txt}d.res.hidden=false;d.res.classList.toggle('bust',bust);d.res.classList.toggle('win',wins.includes(p.id))}
     else d.res.hidden=true;
-    d.cards.style.setProperty('--cols',p.hand.length<=6?Math.max(3,p.hand.length):Math.ceil(p.hand.length/2)); // 7장부터 두 줄 (윗줄이 더 많게)
+    {const n=p.hand.length;d.cards.style.setProperty('--cols',n<=6?Math.max(3,n):n<=12?Math.ceil(n/2):Math.ceil(n/3))} // 7장부터 두 줄, 13장부터 세 줄 (윗줄이 더 많게)
     // 카드 DOM 유지 (애니메이션이 끊기지 않도록)
     const els=p.hand.map(c=>c.el||makeCardEl(c));
     [...d.cards.children].forEach(ch=>{if(!els.includes(ch))ch.remove()});
@@ -1034,13 +1038,58 @@ async function hitPhase(gid){
   S.current=-1;S.players.forEach(p=>{if(!p.folded)p.lastAction=''});render();
 }
 
-function distribute(winners){
+async function distribute(winners){
   const n=winners.length,share=Math.floor(S.pot/n);let rem=S.pot-share*n;
-  order().filter(p=>winners.includes(p)).forEach(p=>{p.chips+=share;if(rem>0){p.chips++;rem--}});
-  S.pot=0;return{share};
+  const gains=order().filter(p=>winners.includes(p)).map(p=>{const g=share+(rem>0?1:0);if(rem>0)rem--;return{p,g}});
+  const g0=GAME_ID;
+  await chipFly(gains);
+  if(g0!==GAME_ID)return{share};
+  gains.forEach(({p,g})=>{p.chips+=g;p.flyGot=0}); // flyGot은 화면 표시용
+  S.pot=0;render();return{share};
+}
+// 팟에서 승자 칩 숫자 쪽으로 포커칩이 곡선을 그리며 날아감 (GSAP). 칩이 닿을 때마다 숫자가 올라감
+function chipFly(gains){
+  gains.forEach(x=>x.p.flyGot=0);
+  const total=gains.reduce((a,x)=>a+x.g,0);
+  const potEl=$('#pot').closest('.stat')||$('#pot');
+  if(!total||reduceMotion||!window.gsap||!potEl.getClientRects().length)return Promise.resolve();
+  const vis=Math.min(total,14);
+  // 화면에 보이는 칩 개수를 승자별 몫에 비례해 나눔 (몫이 있으면 최소 1개)
+  const list=gains.filter(x=>x.g>0).map(x=>({...x,k:Math.max(1,Math.round(vis*x.g/total))}));
+  const jobs=[];
+  list.forEach(x=>{let left=x.g;for(let i=0;i<x.k;i++){const v=i===x.k-1?left:Math.floor(x.g/x.k);left-=v;jobs.push({p:x.p,v})}});
+  // 승자들이 번갈아 받도록 섞기
+  jobs.sort((a,b)=>jobs.filter(j=>j.p===a.p).indexOf(a)-jobs.filter(j=>j.p===b.p).indexOf(b));
+  const sp=Math.min(SPEED,2),dur=.62/sp,gap=.075/sp;
+  const pr=potEl.getBoundingClientRect(),sx=pr.left+pr.width/2,sy=pr.top+pr.height/2;
+  let potLeft=S.pot;
+  return new Promise(res=>{
+    let done=0;
+    jobs.forEach((j,i)=>{
+      const e=document.createElement('div');e.className='pchip';document.body.appendChild(e);
+      const ox=(Math.random()-.5)*18,oy=(Math.random()-.5)*10,lift=60+Math.random()*50,spin=(Math.random()<.5?-1:1)*(180+Math.random()*180);
+      const st={t:0};
+      gsap.set(e,{x:sx+ox,y:sy+oy,scale:0,rotation:0});
+      const tl=gsap.timeline({delay:i*gap,onComplete:()=>{
+        e.remove();j.p.flyGot+=j.v;
+        const d=j.p.dom;if(d){d.chips.textContent='🪙 '+(j.p.chips+j.p.flyGot);d.chips.classList.add('gain');gsap.fromTo(d.chips,{scale:1.35},{scale:1,duration:.3,ease:'back.out(3)'})}
+        potLeft=Math.max(0,potLeft-j.v);$('#pot').textContent=potLeft;
+        SFX.chip();
+        if(++done===jobs.length)res();
+      }});
+      tl.to(e,{scale:1,duration:.12,ease:'back.out(2)'})
+        .to(st,{t:1,duration:dur,ease:'power2.inOut',onUpdate:()=>{
+          // 목적지는 매 프레임 다시 계산 (스크롤돼도 따라감)
+          const d=j.p.dom;const r=d?d.chips.getBoundingClientRect():{left:sx,top:sy,width:0,height:0};
+          const tx=r.left+12,ty=r.top+r.height/2,t=st.t,u=1-t;
+          const cx=(sx+tx)/2,cy=Math.min(sy,ty)-lift;
+          gsap.set(e,{x:u*u*(sx+ox)+2*u*t*cx+t*t*tx,y:u*u*(sy+oy)+2*u*t*cy+t*t*ty,rotation:spin*t,scale:1-.25*t});
+        }},'<.02');
+    });
+  });
 }
 async function endByFold(gid){
-  const w=inPlay()[0],pot=S.pot;distribute([w]);
+  const w=inPlay()[0],pot=S.pot;await distribute([w]);chk(gid);
   S.starter=w.id;S.result={winners:[w.id],msg:`🏆 ${w.name} 승리! (나머지 폴드) +${pot}칩`};
   S.players.forEach(p=>p.lastAction='');
   SFX.win();log(`🏆 <b>${w.name}</b> 승리 (모두 폴드) · 팟 ${pot}칩 획득`);
@@ -1062,7 +1111,7 @@ async function showdown(gid){
     msg=winners.length===1?`🏆 ${winners[0].name} 승리! (합 ${best}${tied?`, 카드 ${mx}장`:''}) +${pot}칩`
       :`🤝 ${winners.map(p=>p.name).join(', ')} 무승부 (합 ${best}, ${mx}장) — 팟 분배`;
   }
-  const{share}=distribute(winners);
+  const{share}=await distribute(winners);chk(gid);
   if(winners.length===1){S.starter=winners[0].id;SFX.win()}else SFX.draw();
   S.result={winners:winners.map(p=>p.id),msg};
   log(msg+(winners.length>1?` (각 ${share}칩)`:''));
