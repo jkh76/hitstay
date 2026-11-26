@@ -64,14 +64,14 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 .stage{display:flex;align-items:center;justify-content:center;gap:22px;max-height:170px;overflow:hidden;transition:max-height .45s ease,opacity .3s ease,margin .45s ease}
 .stage.gone{max-height:0;opacity:0;margin-bottom:-10px}
 .stat.deckfocus{box-shadow:inset 0 0 0 2px rgba(242,201,76,.6)}
-.dicebox{position:relative;width:150px;height:124px;flex:none}
+.dicebox{position:relative;width:150px;height:146px;flex:none}
 #diceCanvas{width:150px;height:124px;display:block}
-.dice2d{position:absolute;inset:16px 33px;display:flex;align-items:center;justify-content:center}
+.dice2d{position:absolute;top:16px;left:33px;right:33px;height:92px;display:flex;align-items:center;justify-content:center}
 .dice2d svg{position:absolute;inset:0;width:100%;height:100%}
 .dice2d .num{position:relative;font-size:30px;font-weight:900;color:#1d1d1d}
 .dice2d.rolling{animation:shake .12s infinite}
 @keyframes shake{0%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}100%{transform:rotate(-8deg)}}
-.limitTag{position:absolute;left:0;right:0;bottom:-4px;text-align:center;font-size:12px;color:var(--muted);font-weight:700}
+.limitTag{position:absolute;left:0;right:0;bottom:0;text-align:center;font-size:12px;line-height:20px;color:var(--muted);font-weight:700;white-space:nowrap}
 .limitTag b{color:var(--gold);font-size:15px}
 /* deck pile */
 .pile{position:relative;width:46px;height:66px;flex:none}
@@ -216,7 +216,7 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
   .lcol{grid-area:left;display:flex;flex-direction:column;gap:10px;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
   .lcol::-webkit-scrollbar{display:none}
   /* 스크롤 영역 안쪽에 여유를 둬서 박스가 커지거나 빛날 때 잘리지 않게 */
-  .rcol{grid-area:right;display:block;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:22px 16px 14px;margin:-22px -16px 0;scrollbar-width:thin}
+  .rcol{grid-area:right;display:block;min-width:0;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;padding:22px 16px 14px;margin:-22px -16px 0;scrollbar-width:thin}
   .pl.spot{transform:scale(1.03)}
   .pl.chosen{animation-name:chosenL}
   @keyframes chosenL{50%{transform:scale(1.05);box-shadow:0 0 26px rgba(242,201,76,.95)}}
@@ -242,7 +242,7 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
   #center{padding:6px 8px 8px;gap:6px}
   .stage{gap:16px}
   .dicebox,#diceCanvas{width:100px;height:83px}
-  .dice2d{inset:8px 20px}.dice2d .num{font-size:24px}
+  .dice2d{top:8px;left:20px;right:20px;height:67px}.dice2d .num{font-size:24px}
   .limitTag{display:none}
   .pile{width:38px;height:54px}.pile b{bottom:-17px;font-size:11px}
   .info{gap:4px}.stat{padding:3px 4px;gap:4px}.stat small{font-size:10px}.stat b{font-size:14px}
