@@ -164,6 +164,9 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 .card.flying .back{box-shadow:0 4px 10px rgba(0,0,0,.5)}
 .card.first .front{box-shadow:inset 0 0 0 2px var(--gold),0 2px 4px rgba(0,0,0,.35);padding-bottom:18cqw}
 .card.first .front::before{content:"공개";position:absolute;left:0;right:0;bottom:0;background:var(--gold);color:#2a1a04;font-size:max(7px,22cqw);font-weight:900;line-height:1.45;text-align:center;letter-spacing:1px}
+.card.picked::after{content:"선택";position:absolute;left:50%;bottom:-3px;z-index:3;transform:translateX(-50%);padding:0 6px;border-radius:999px;background:#fff;color:var(--crimson-deep,#7a1626);font-size:max(8px,22cqw);font-weight:900;line-height:1.5;white-space:nowrap;box-shadow:0 2px 5px rgba(0,0,0,.45);animation:pickpop .3s cubic-bezier(.2,1.6,.4,1) both}
+.card.picked .in{filter:drop-shadow(0 0 4px rgba(255,255,255,.85))}
+@keyframes pickpop{from{opacity:0;transform:translateX(-50%) scale(.4)}to{opacity:1;transform:translateX(-50%) scale(1)}}
 .card.secret .front{box-shadow:inset 0 0 0 2px #7fb8ff,0 2px 4px rgba(0,0,0,.35)}
 .card.secret .front::after{content:"🔒";position:absolute;font-size:max(6px,21cqw);top:2px;right:3px}
 .card .gl{position:absolute;inset:-2px;z-index:2;border-radius:9px;padding:2.5px;pointer-events:none;opacity:0;
@@ -685,6 +688,7 @@ function render(){
       else if(up&&c.open&&!c.wasOpen)shine.push(c.el);
       c.wasOpen=c.open;
       c.el.classList.toggle('secret',up&&!c.open&&!shown(p));
+      c.el.classList.toggle('picked',!!c.picked&&!c.open); // 공개할 카드로 골랐지만 아직 안 뒤집힘
       // 처음 공개한 카드: 히든 카드와 같이 보일 때(내 패·최종 공개) '공개' 표시
       c.el.classList.toggle('first',!!c.first&&up&&(canSee(p)||shown(p)));
     });
@@ -991,13 +995,26 @@ async function playRound(gid){
   S.players.forEach(p=>p.hand.forEach(c=>c.hold=false));render(); // 내 카드는 이때 뒤집혀 보임
   await wait(500);chk(gid);
 
-  setPhase('카드 1장 공개');
+  setPhase('공개할 카드 선택');
+  // 1) 선부터 차례로 공개할 카드를 고름 — 고른 카드에는 '선택' 표시만 하고 아직 뒤집지 않음
   for(const p of order()){
     S.current=p.id;render();
     let idx;
-    if(p.ai){await wait(500);idx=rnd(3)}else idx=await askReveal(p);
+    if(p.ai){await wait(450);idx=rnd(3)}else idx=await askReveal(p);
     chk(gid);
-    p.hand[idx].open=true;p.hand[idx].first=true;p.peek=false;
+    p.hand[idx].picked=true;p.peek=false;p.lastAction='선택 완료';
+    render();SFX.select();
+    log(`${p.name} 공개할 카드 선택`);await wait(250);
+  }
+  // 2) 모두 고른 뒤 선부터 차례로 공개
+  setPhase('카드 1장 공개');
+  for(const p of order()){
+    S.current=p.id;render();
+    await wait(300);chk(gid);
+    const idx=p.hand.findIndex(c=>c.picked);
+    p.hand[idx].picked=false;p.hand[idx].open=true;p.hand[idx].first=true;p.lastAction='';
+    render(); // 카드가 뒤집히며 공개
+    await wait(450);chk(gid);
     // 공개한 카드를 세 장 중 맨 오른쪽으로 옮김 (자리 이동은 부드럽게)
     const before=new Map(p.hand.map(c=>[c,c.el.getBoundingClientRect()]));
     const moved=p.hand.splice(idx,1)[0];p.hand.splice(2,0,moved);
