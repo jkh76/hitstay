@@ -721,7 +721,29 @@ function fitView(){
   const hi=keys.length?Math.min(...keys.map(k=>sPos(null,k).top-16)):Infinity; // 핵심 박스가 보이려면 이보다 덜 내려가야 함
   sGo(null,lo>hi?lo:Math.min(Math.max(base,lo),hi));                         // 둘 다 안 되면 행동 패널 우선
 }
-function setAction(v){$('#action').hidden=!v}
+const ACT_PROPS='height,paddingTop,paddingBottom,marginTop,opacity,transform,overflow,pointerEvents';
+// 열기: 바로 보이게(연출은 openAction). 닫기: 0.2초 동안 접히며 사라진 뒤 숨김
+function setAction(v){
+  const a=$('#action');
+  if(v){if(window.gsap){gsap.killTweensOf(a);gsap.set(a,{clearProps:ACT_PROPS})}a.hidden=false;return}
+  if(a.hidden)return;
+  if(reduceMotion||!window.gsap){a.hidden=true;return}
+  gsap.killTweensOf(a);
+  gsap.to(a,{height:0,paddingTop:0,paddingBottom:0,marginTop:0,opacity:0,y:-4,overflow:'hidden',pointerEvents:'none',duration:.2,ease:'power2.in',
+    onComplete:()=>{a.hidden=true;gsap.set(a,{clearProps:ACT_PROPS})}});
+}
+// 행동 패널이 스르륵 펼쳐지며 열림 (높이·투명도), 버튼은 살짝 시차를 두고 올라옴. 다 열린 뒤 화면 맞춤
+function openAction(){
+  const a=$('#action');
+  if(reduceMotion||!window.gsap){setTimeout(fitView,110);return}
+  gsap.killTweensOf(a);gsap.set(a,{clearProps:ACT_PROPS});
+  const cs=getComputedStyle(a),pt=cs.paddingTop,pb=cs.paddingBottom;
+  gsap.fromTo(a,{height:0,paddingTop:0,paddingBottom:0,opacity:0,y:-6,overflow:'hidden'},
+    {height:'auto',paddingTop:pt,paddingBottom:pb,opacity:1,y:0,duration:.4,ease:'power2.out',
+     clearProps:'height,paddingTop,paddingBottom,opacity,transform,overflow',onComplete:fitView});
+  const items=a.querySelectorAll('.ttl,.meta,.pickrow>*,.acts>*');
+  if(items.length)gsap.fromTo(items,{opacity:0,y:10},{opacity:1,y:0,duration:.32,delay:.1,stagger:.035,ease:'back.out(1.8)',clearProps:'opacity,transform'});
+}
 // 행동 패널 위치: 세로 화면이면 그 플레이어 박스 바로 아래, 아니면 원래 자리
 let actionOwner=null;
 const isPortrait=()=>{try{return matchMedia('(orientation: portrait)').matches}catch(e){return false}};
@@ -738,7 +760,7 @@ function showAction(builder,owner=null){
   return new Promise(res=>{
     pendingResolve=res;
     const draw=()=>{const box=$('#actIn');box.innerHTML='';builder(box,v=>{if(pendingResolve!==res)return;pendingResolve=null;setAction(false);res(v)},draw)};
-    setAction(true);draw();setTimeout(fitView,110);SFX.turn();
+    setAction(true);draw();openAction();SFX.turn();
   });
 }
 function el(tag,attrs={},html=''){const e=document.createElement(tag);Object.assign(e,attrs);if(html)e.innerHTML=html;return e}
