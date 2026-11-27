@@ -212,6 +212,28 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
 .rank{display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px;background:rgba(0,0,0,.25);margin:6px 0}
 .rank .n{font-weight:900;width:28px;color:var(--gold)}
 .hint{font-size:12px;color:var(--muted);margin-top:6px}
+/* 저장·불러오기 */
+.loadb{background:#2f7a5e;color:var(--ink);padding:12px 14px}
+.modal .mbox.sm{max-width:380px}
+.modal input.fin{display:block;width:100%;margin:8px 0 0;padding:12px;border-radius:10px;border:1px solid #2f7a5e;background:#082a1f;color:var(--ink);font:inherit;font-size:16px}
+.modal input.fin:focus{outline:2px solid var(--gold);outline-offset:1px}
+.lerr{min-height:18px;margin-top:6px;font-size:13px;color:#ff9a9d;font-weight:700}
+.mbtns{display:flex;gap:8px;margin-top:10px}.mbtns .big{flex:1;padding:12px;font-size:16px}.mbtns .rulesb{flex:0 0 auto}
+.muser{font-size:13px;color:var(--muted);margin:-4px 0 10px}
+.mitem{display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin:0 0 8px;padding:11px 12px;background:rgba(255,255,255,.08);color:var(--ink);font-size:16px}
+.mitem .ic{font-size:20px;width:26px;text-align:center}.mitem small{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-top:2px}
+.savedAt{text-align:center;font-size:19px;font-weight:900;color:var(--gold);margin:4px 0 2px}
+.savedSub{text-align:center;color:var(--muted);font-size:14px;font-weight:700;margin-bottom:8px;line-height:1.5}
+.lplayers{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 12px;margin:6px 0 4px;font-size:14px;font-weight:700}
+.lplayers .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}.lplayers .out{opacity:.45}
+.mnote{text-align:center;font-size:12px;color:#ffd27a;margin-top:6px}
+.toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:260;background:#0f3b2c;border:1px solid var(--gold);color:var(--ink);font-weight:800;font-size:14px;padding:9px 16px;border-radius:999px;box-shadow:0 6px 20px rgba(0,0,0,.4);pointer-events:none;white-space:nowrap;transition:opacity .35s}
+.toast.err{border-color:#ff7b7f;color:#ffd0d1}.toast.hide{opacity:0}
+@media (max-height:560px){ /* 폰 가로: 저장 창을 촘촘하게 */
+  .modal{padding:8px}.modal .mbox.sm{padding:12px 14px;max-height:94vh}.modal .mbox.sm h2{margin-bottom:4px;font-size:19px}
+  .mitem{padding:6px 10px;margin-bottom:5px;font-size:15px}.mitem small{display:none}.muser{margin:0 0 6px}
+  .mbtns{margin-top:6px}.mbtns .big{padding:9px}.modal input.fin{padding:9px;margin-top:6px}.savedAt{font-size:17px}
+}
 
 /* ===== 가로 화면 (태블릿/폰 가로): 왼쪽 = 플레이어, 오른쪽 = 주사위·정보·행동 ===== */
 .lcol,.rcol{display:contents}
@@ -301,14 +323,14 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
     <div class="row opts"><label>AI 속도</label><div class="seg" id="spdSeg"></div></div>
     <div class="row opts"><label>효과음</label><div class="seg" id="sndSeg"></div></div>
   </div>
-  <div class="sbtns"><button class="big" id="startBtn">게임 시작</button><button id="rulesBtn0" class="rulesb">규칙</button></div>
+  <div class="sbtns"><button class="big" id="startBtn">게임 시작</button><button id="loadBtn" class="loadb">📂 이어하기</button><button id="rulesBtn0" class="rulesb">규칙</button></div>
 </div>
 
 <!-- ====== 게임 화면 ====== -->
 <div id="game" hidden>
   <div class="top">
     <div class="t"><span class="logo">HIT<span>,</span> STAY</span><span class="rlabel">라운드 <b id="rnd">1</b></span></div>
-    <div class="btns"><button id="sndBtn">🔊</button><button id="rulesBtn">규칙</button><button id="quitBtn">나가기</button></div>
+    <div class="btns"><button id="sndBtn">🔊</button><button id="rulesBtn">규칙</button><button id="menuBtn" aria-label="메뉴">☰ 메뉴</button></div>
   </div>
   <div class="lcol">
   <div id="center">
@@ -363,6 +385,19 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
   <div class="hint">🔒 파란 테두리 카드 = 나만 보이는 비공개 카드</div>
   <button class="big" style="margin-top:12px" onclick="document.getElementById('rulesModal').hidden=true">닫기</button>
 </div></div>
+
+<div class="modal" id="loginModal" hidden><div class="mbox sm">
+  <h2 id="loginTitle">닉네임으로 저장</h2>
+  <div class="hint" id="loginHint" style="line-height:1.55"></div>
+  <input class="fin" id="nickIn" type="text" placeholder="닉네임" maxlength="12" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <input class="fin" id="pinIn" type="password" placeholder="비밀번호 숫자 4자리" inputmode="numeric" maxlength="4" autocomplete="off">
+  <div class="lerr" id="loginErr"></div>
+  <div class="mbtns"><button class="big" id="loginOk">확인</button><button class="rulesb" id="loginCancel">취소</button></div>
+</div></div>
+<div class="modal" id="menuModal" hidden><div class="mbox sm" id="menuPanel"></div></div>
+<div class="modal" id="loadModal" hidden><div class="mbox sm" id="loadPanel"></div></div>
+<div class="modal" id="confirmModal" hidden><div class="mbox sm" id="confirmPanel"></div></div>
+<div class="toast hide" id="toast" hidden></div>
 
 <div class="modal" id="overModal" hidden><div class="mbox">
   <h2 id="overTitle">게임 종료</h2>
@@ -591,12 +626,24 @@ function renderSetup(){
   }
 }
 renderSetup();
-$('#startBtn').onclick=()=>{SFX.unlock();startGame(slotCfg.slice(0,setupCnt).map((c,i)=>({name:(c.name||'').trim()||(c.ai?`AI ${i}`:`P${i+1}`),ai:c.ai})))};
+$('#startBtn').onclick=async()=>{
+  SFX.unlock();
+  const cfg=slotCfg.slice(0,setupCnt).map((c,i)=>({name:(c.name||'').trim()||(c.ai?`AI ${i}`:`P${i+1}`),ai:c.ai}));
+  // 시작할 때 닉네임+비밀번호 → 라운드마다 자동 저장 (건너뛰면 저장 없이 시작, 메뉴에서 나중에 저장 가능)
+  Save.logout();
+  if(await ensureLogin('start')){
+    // 게임 시작 = 새 게임: 이 닉네임+비밀번호로 저장돼 있던 게임은 지우고 첫 라운드부터 새로 저장 (이어 하려면 📂 이어하기)
+    try{await Save.del()}catch(e){toast(Save.errText(e),true)}
+  }
+  startGame(cfg);
+};
+$('#loadBtn').onclick=()=>{SFX.unlock();loadFlow(false)};
+$('#menuBtn').onclick=openMenu;
 $('#rulesBtn0').onclick=$('#rulesBtn').onclick=()=>$('#rulesModal').hidden=false;
 $('#sndBtn').onclick=()=>{MUTED=!MUTED;$('#sndBtn').textContent=MUTED?'🔇':'🔊'};
-$('#quitBtn').onclick=()=>{if(confirm('게임을 그만두고 설정 화면으로 갈까요?'))toSetup()};
 $('#againBtn').onclick=()=>{$('#overModal').hidden=true;toSetup()};
-function toSetup(){GAME_ID++;keepAwake(false);pendingResolve=null;$('#turnBox').hidden=true;$('#game').hidden=true;setAction(false);$('#setup').hidden=false;renderSetup()}
+function stopGame(){GAME_ID++;pendingResolve=null;$('#turnBox').hidden=true;$('#overModal').hidden=true;setAction(false)}
+function toSetup(){stopGame();keepAwake(false);Save.snap=null;$('#game').hidden=true;$('#setup').hidden=false;renderSetup()}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button');if(b&&!b.disabled)SFX.click()},true);
 
 // ================= 로그/렌더 =================
@@ -899,17 +946,24 @@ async function keepAwake(on){
 }
 // 앱을 잠깐 나갔다 오면 잠금이 풀리므로 다시 요청
 document.addEventListener('visibilitychange',()=>{if(wakeWanted&&document.visibilityState==='visible')keepAwake(true)});
-function startGame(cfg){
-  GAME_ID++;keepAwake(true);
-  S.players=cfg.map((c,i)=>({id:i,name:c.name,ai:c.ai,chips:30,hand:[],folded:false,stayed:false,rb:0,inRound:false,peek:false,revealed:false,color:COLORS[i],lastAction:'',outRound:0,style:Math.random()*2-1}));
-  S.humanCount=cfg.filter(c=>!c.ai).length;
-  S.round=0;S.starter=rnd(S.players.length);S.pot=0;S.limit=null;S.result=null;S.showdown=false;S.deck=makeDeck();S.cap=0;S.curBet=0;S.current=-1;
+function startGame(cfg,saved){ // saved: 불러온 저장 데이터(라운드 시작 시점)
+  stopGame();keepAwake(true);
+  const base=p=>({hand:[],folded:false,stayed:false,rb:0,inRound:false,peek:false,revealed:false,lastAction:'',...p});
+  S.players=saved?saved.players.map(p=>base({id:p.id,name:p.name,ai:p.ai,chips:p.chips,color:p.color,outRound:p.outRound||0,style:p.style??(Math.random()*2-1)}))
+    :cfg.map((c,i)=>base({id:i,name:c.name,ai:c.ai,chips:30,color:COLORS[i],outRound:0,style:Math.random()*2-1}));
+  S.humanCount=S.players.filter(p=>!p.ai).length;
+  S.round=saved?saved.round:0;S.starter=saved?saved.starter:rnd(S.players.length);S.pot=0;S.limit=null;S.result=null;S.showdown=false;S.deck=makeDeck();S.cap=0;S.curBet=0;S.current=-1;S.phase='';
   $('#log').innerHTML='';
+  if(saved){
+    (saved.log||[]).slice().reverse().forEach(l=>log(l.h,l.c));
+    log(`📂 이어하기 · ${saved.round}라운드까지 진행된 게임`,'r');
+    Save.snap=saved;Save.lastAt=saved.savedAt;
+  }
   $('#setup').hidden=true;$('#game').hidden=false;$('#overModal').hidden=true;
   Dice.init();
   buildPlayers();
-  S.picking=true;$('#burst').className='burst';
-  render();gameLoop(GAME_ID);
+  S.picking=!saved;$('#burst').className='burst';
+  render();gameLoop(GAME_ID,!!saved);
 }
 function showBurst(html,ms=1500){
   const e=$('#burst');e.className='burst';e.innerHTML='<span>'+html+'</span>';void e.offsetWidth;e.classList.add('show');
@@ -938,12 +992,13 @@ async function pickStarter(gid){
 }
 const alive=()=>S.players.filter(p=>p.chips>0);
 function nextAliveFrom(i){const n=S.players.length;for(let k=0;k<n;k++){const p=S.players[(i+k)%n];if(p.chips>0)return p.id}return i}
-async function gameLoop(gid){
+async function gameLoop(gid,resumed){
   try{
-    if(S.round===0)await pickStarter(gid);
+    if(S.round===0&&!resumed)await pickStarter(gid);
     while(gid===GAME_ID){
       const al=alive();
       if(al.length<2||(S.humanCount>0&&!al.some(p=>!p.ai)))return gameOver();
+      Save.mark(); // 라운드 시작 시점 기록 + 로그인돼 있으면 자동 저장
       await playRound(gid);
     }
   }catch(e){if(e!=='stop')console.error(e)}
@@ -1170,11 +1225,212 @@ async function afterRound(gid){
 }
 function gameOver(){
   S.current=-1;render();setAction(false);
+  Save.finish(); // 끝난 게임은 저장 칸에서 지움
   const ranked=[...S.players].sort((a,b)=>b.chips-a.chips||b.outRound-a.outRound);
   $('#overTitle').textContent=alive().length<2?`🏆 ${ranked[0].name} 최종 우승!`:'게임 종료';
   $('#overList').innerHTML=`<div class="hint" style="margin-bottom:8px">총 ${S.round}라운드</div>`+ranked.map((p,i)=>`<div class="rank"><span class="n">${i+1}</span><span class="dot" style="background:${p.color}"></span><b>${p.name}</b>${p.ai?'<span class="tag">AI</span>':''}<span style="margin-left:auto;color:var(--gold);font-weight:800">${p.chips>0?`🪙 ${p.chips}`:`${p.outRound}R 탈락`}</span></div>`).join('');
   $('#overModal').hidden=false;SFX.win();
 }
+
+// ================= 저장 / 불러오기 (해저탐험 방식) =================
+// 닉네임 + 비밀번호 4자리 → Firebase 익명 로그인 + Firestore에 저장. SDK 없이 REST API(fetch)로 호출.
+// 해저탐험과 같은 Firebase 프로젝트를 쓰고, 저장 칸 주소의 앞머리('hitstay|')가 달라 서로 섞이지 않음.
+// FIREBASE 값이 비어 있으면 이 기기(브라우저)에만 저장한다.
+const FIREBASE={apiKey:'AIzaSyCTqFpMMU2OF3Xbz-Ce7CAO9ZTn6MvbG_U',projectId:'deepsea-f67d5'};
+const CLOUD=!!(FIREBASE.apiKey&&FIREBASE.projectId);
+const LS={
+  get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},
+  del(k){try{localStorage.removeItem(k)}catch(e){}},
+};
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDate=iso=>new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short',hour:'numeric',minute:'2-digit'}).format(new Date(iso));
+let toastT=0;
+function toast(text,err=false){
+  const t=$('#toast');t.textContent=text;t.classList.toggle('err',err);t.hidden=false;void t.offsetWidth;t.classList.remove('hide');
+  clearTimeout(toastT);toastT=setTimeout(()=>{t.classList.add('hide');toastT=setTimeout(()=>t.hidden=true,400)},1900);
+}
+const nickKey=n=>n.trim().toLowerCase();
+// 저장 칸 주소 = SHA-256('hitstay|닉네임|비밀번호'). 같은 닉네임·비밀번호면 어느 기기에서든 같은 칸
+async function slotKey(nick,pin){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`hitstay|${nickKey(nick)}|${pin}`));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+const Save={
+  user:null, // {nick,key} — 이번 게임에서만 유지(같은 기기를 여러 사람이 써도 남의 칸에 저장되지 않게). 비밀번호는 저장하지 않음
+  anon:LS.get('hs.anon'), // Firebase 익명 로그인 토큰 (기기마다 따로)
+  snap:null, // 현재 라운드 시작 시점의 게임 상태
+  lastAt:null,failShown:false,
+  async login(nick,pin){nick=nick.trim();this.user={nick,key:await slotKey(nick,pin)};this.lastAt=null;LS.set('hs.lastNick',nick)},
+  logout(){this.user=null;this.lastAt=null},
+  errText(e){
+    const m=(e&&e.message)||'';
+    if(m==='NET')return '인터넷 연결을 확인해 주세요';
+    if(/ADMIN_ONLY|OPERATION_NOT_ALLOWED/.test(m))return 'Firebase에서 익명 로그인이 꺼져 있어요';
+    if(/PERMISSION_DENIED/.test(m))return 'Firestore 규칙을 확인해 주세요';
+    return '저장소에 연결하지 못했어요 ('+m+')';
+  },
+  async token(){
+    const a=this.anon;
+    if(a&&a.exp-Date.now()>60000)return a.idToken;
+    let j;
+    try{
+      const r=a?await fetch(`https://securetoken.googleapis.com/v1/token?key=${FIREBASE.apiKey}`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`grant_type=refresh_token&refresh_token=${encodeURIComponent(a.refreshToken)}`})
+              :await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE.apiKey}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({returnSecureToken:true})});
+      j=await r.json();
+    }catch(e){throw new Error('NET')}
+    if(j.error){if(a){this.anon=null;LS.del('hs.anon');return this.token()}throw new Error(j.error.message)} // 갱신 실패 → 익명 계정 새로 만들기
+    this.anon={idToken:j.idToken||j.id_token,refreshToken:j.refreshToken||j.refresh_token,exp:Date.now()+(+(j.expiresIn||j.expires_in)||3600)*1000};
+    LS.set('hs.anon',this.anon);return this.anon.idToken;
+  },
+  async doc(method,body,u=this.user){
+    const url=`https://firestore.googleapis.com/v1/projects/${FIREBASE.projectId}/databases/(default)/documents/saves/${u.key}`;
+    const tk=await this.token();let r;
+    try{r=await fetch(url,{method,headers:{Authorization:'Bearer '+tk,'Content-Type':'application/json'},body:body&&JSON.stringify(body)})}
+    catch(e){throw new Error('NET')}
+    if(r.status===404)return null;
+    const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error((j.error&&j.error.status)||'HTTP'+r.status);return j;
+  },
+  async put(data,u=this.user){
+    if(!CLOUD){LS.set('hs.local.'+u.key,data);return}
+    await this.doc('PATCH',{fields:{nick:{stringValue:u.nick},game:{stringValue:'hitstay'},savedAt:{timestampValue:data.savedAt},data:{stringValue:JSON.stringify(data)}}},u);
+  },
+  async get(){
+    if(!CLOUD)return LS.get('hs.local.'+this.user.key);
+    const j=await this.doc('GET');return j&&j.fields?JSON.parse(j.fields.data.stringValue):null;
+  },
+  // 저장·삭제는 한 줄로 세워 순서대로 보냄 (느린 네트워크에서 예전 저장이 최신 저장을 덮거나, 지운 뒤 저장이 되살아나지 않게)
+  q:Promise.resolve(),waiting:null,
+  enqueue(fn){const p=this.q.then(fn);this.q=p.catch(()=>{});return p},
+  del(u=this.user){
+    if(!u)return Promise.resolve();
+    if(this.waiting&&this.waiting.job.user.key===u.key)this.waiting.job.skip=true; // 아직 안 보낸 저장은 취소
+    return this.enqueue(async()=>{if(!CLOUD){LS.del('hs.local.'+u.key);return}await this.doc('DELETE',null,u)});
+  },
+  mark(){ // 라운드가 시작될 때 상태를 찍어 두고, 로그인돼 있으면 자동 저장
+    const L=[...$('#log').children].slice(0,80).map(d=>({h:d.innerHTML,c:d.className}));
+    this.snap=JSON.parse(JSON.stringify({ver:1,game:'hitstay',round:S.round,starter:S.starter,
+      players:S.players.map(p=>({id:p.id,name:p.name,ai:p.ai,chips:p.chips,color:p.color,outRound:p.outRound,style:p.style})),log:L}));
+    if(this.user)this.write(true);
+  },
+  write(silent){
+    if(!this.snap||!this.user)return Promise.resolve(false);
+    const job={data:{...this.snap,savedAt:new Date().toISOString()},user:this.user,silent};
+    const w=this.waiting; // 앞 요청을 기다리는 저장이 이미 있으면 가장 최신 상태 하나로 합침
+    if(w&&!w.job.skip&&w.job.user.key===job.user.key){job.silent=job.silent&&w.job.silent;w.job=job;return w.p}
+    const nw={job};this.waiting=nw;
+    nw.p=this.enqueue(()=>{if(this.waiting===nw)this.waiting=null;return this.writeNow(nw.job)});
+    return nw.p;
+  },
+  async writeNow(job){
+    if(job.skip)return false;
+    const {data,user,silent}=job;
+    try{await this.put(data,user);if(this.user&&this.user.key===user.key)this.lastAt=data.savedAt;this.failShown=false;if(!silent)toast('저장됨 ✓');return true}
+    catch(e){if(!silent||!this.failShown){this.failShown=true;toast(silent?'자동 저장 실패 · '+this.errText(e):this.errText(e),true)}return false}
+  },
+  finish(){this.snap=null;if(this.user)this.del().catch(()=>{})},
+};
+function modalOpen(id){const m=$(id);m.hidden=false;if(window.gsap&&!reduceMotion)gsap.from(m.querySelector('.mbox'),{y:30,opacity:0,duration:.28,ease:'back.out(2)',clearProps:'all'})}
+function ensureLogin(mode){ // mode: start / save / load — 닉네임+비밀번호로 저장 칸을 정함
+  return new Promise(res=>{
+    const err=$('#loginErr'),nick=$('#nickIn'),pin=$('#pinIn');
+    $('#loginTitle').textContent={save:'닉네임으로 저장',load:'저장된 게임 불러오기',start:'🃏 게임 준비'}[mode];
+    $('#loginHint').innerHTML={
+      start:'<b style="color:var(--gold)">닉네임과 비밀번호 4자리를 넣으면 라운드마다 자동 저장됩니다.</b><br>같은 닉네임으로 저장된 게임이 있으면 지우고 새로 저장해요(이어 하려면 📂 이어하기).<br>다른 기기에서도 같은 닉네임과 비밀번호로 이어 할 수 있어요. 비밀번호를 잊으면 저장을 찾을 수 없어요.',
+      save:'저장하면 이후 라운드마다 자동 저장됩니다. 다른 기기에서도 같은 닉네임과 비밀번호 4자리를 넣으면 이어 할 수 있어요. 비밀번호를 잊으면 저장을 찾을 수 없어요.',
+      load:'저장할 때 쓴 닉네임과 비밀번호 4자리를 넣어 주세요.'}[mode]+(CLOUD?'':' (지금은 이 기기에만 저장돼요)');
+    $('#loginOk').textContent=mode==='start'?'시작':'확인';
+    $('#loginCancel').textContent=mode==='start'?'저장 없이 시작':'취소';
+    err.textContent='';pin.value='';if(!nick.value)nick.value=(Save.user&&Save.user.nick)||LS.get('hs.lastNick')||'';
+    pin.oninput=()=>{pin.value=pin.value.replace(/\D/g,'').slice(0,4);err.textContent=''};
+    nick.oninput=()=>err.textContent='';
+    nick.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();pin.focus()}};
+    pin.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$('#loginOk').click()}};
+    modalOpen('#loginModal');setTimeout(()=>(nick.value?pin:nick).focus(),60);
+    const close=ok=>{$('#loginModal').hidden=true;res(ok)};
+    $('#loginCancel').onclick=()=>close(false);
+    $('#loginOk').onclick=async()=>{
+      if(!nick.value.trim()){err.textContent='닉네임을 넣어 주세요';return}
+      if(!/^\d{4}$/.test(pin.value)){err.textContent='비밀번호는 숫자 4자리예요';return}
+      const b=$('#loginOk');b.disabled=true;err.textContent='확인하는 중…';
+      try{await Save.login(nick.value,pin.value);close(true)}catch(e){err.textContent=Save.errText(e)}
+      b.disabled=false;
+    };
+  });
+}
+function confirmBox(title,text,okLabel){
+  return new Promise(res=>{
+    $('#confirmPanel').innerHTML=`<h2>${title}</h2><div class="savedSub">${text}</div><div class="mbtns"><button class="big" id="cfOk">${okLabel}</button><button class="rulesb" id="cfNo">취소</button></div>`;
+    modalOpen('#confirmModal');
+    const done=v=>{$('#confirmModal').hidden=true;res(v)};
+    $('#cfOk').onclick=()=>done(true);$('#cfNo').onclick=()=>done(false);
+  });
+}
+// 저장된 게임 카드: 저장 날짜·시간 + 다음 라운드·참가자 칩
+function showLoadCard(d,inGame){
+  return new Promise(res=>{
+    const P=$('#loadPanel'),nick=esc(Save.user.nick);
+    if(!d){
+      P.innerHTML=`<h2>📂 불러오기</h2><div class="savedSub">'${nick}' 닉네임과 이 비밀번호로 저장된 게임이 없어요</div><div class="mbtns"><button class="big" id="ldRe">다시 입력</button><button class="rulesb" id="ldNo">닫기</button></div>`;
+      $('#ldRe').onclick=()=>{$('#loadModal').hidden=true;res('retry')};
+    }else{
+      const al=d.players.filter(p=>p.chips>0).length;
+      P.innerHTML=`<h2>📂 저장된 게임</h2>
+        <div class="savedSub" style="margin-bottom:2px">${nick} 님 · 저장한 날짜·시간</div>
+        <div class="savedAt">${fmtDate(d.savedAt)}</div>
+        <div class="savedSub"><b style="color:var(--ink)">${d.round+1}라운드</b>부터 · ${d.players.length}인 중 ${al}명 남음 · 선 <b style="color:var(--ink)">${esc(d.players[d.starter].name)}</b></div>
+        <div class="lplayers">${d.players.map(p=>`<span class="${p.chips>0?'':'out'}"><span class="dot" style="background:${esc(p.color)}"></span>${esc(p.name)}${p.ai?' (AI)':''} 🪙 ${+p.chips}</span>`).join('')}</div>
+        ${inGame?'<div class="mnote">지금 하던 게임은 저장한 시점 이후 내용이 사라져요</div>':''}
+        <div class="mbtns"><button class="big" id="ldOk">이어하기</button><button class="rulesb" id="ldNo">취소</button></div>`;
+      $('#ldOk').onclick=()=>{$('#loadModal').hidden=true;res(true)};
+    }
+    modalOpen('#loadModal');
+    $('#ldNo').onclick=()=>{$('#loadModal').hidden=true;res(false)};
+  });
+}
+async function loadFlow(inGame,prev=Save.user,prevAt=Save.lastAt){
+  // 이어하기는 항상 닉네임+비밀번호 입력. 취소하면 원래 로그인(지금 게임의 저장 칸)으로 되돌림
+  const back=()=>{Save.user=prev;Save.lastAt=prevAt};
+  if(!(await ensureLogin('load')))return back();
+  let d;
+  try{d=await Save.get()}catch(e){toast(Save.errText(e),true);return back()}
+  if(d&&(d.game!=='hitstay'||!Array.isArray(d.players)))d=null;
+  const ok=await showLoadCard(d,inGame);
+  if(ok==='retry')return loadFlow(inGame,prev,prevAt);
+  if(!ok)return back();
+  startGame(null,d);
+  toast(`${d.round+1}라운드부터 이어 합니다`);
+}
+function openMenu(){
+  const u=Save.user,P=$('#menuPanel');
+  const saveSub=u?(Save.lastAt?`마지막 저장: ${fmtDate(Save.lastAt)}`:'자동 저장: 라운드마다'):'닉네임과 비밀번호 4자리로 저장';
+  P.innerHTML=`<h2>메뉴</h2><div class="muser">${u?`👤 ${esc(u.nick)} · 자동 저장 켜짐`:'저장 안 하는 중 (로그인 안 됨)'}</div>
+    <button class="mitem" id="mSave"><span class="ic">💾</span><span>지금 저장하기<small>${saveSub}</small></span></button>
+    <button class="mitem" id="mLoad"><span class="ic">📂</span><span>불러오기<small>저장한 날짜·시간을 보고 이어 하기</small></span></button>
+    <button class="mitem" id="mUser"><span class="ic">👤</span><span>${u?'닉네임 바꾸기':'로그인'}<small>${u?`${esc(u.nick)} 님 로그아웃 후 다른 닉네임으로 저장`:'저장·불러오기에 쓸 닉네임'}</small></span></button>
+    <button class="mitem" id="mQuit"><span class="ic">🏠</span><span>나가기<small>${u?'저장은 남겨 두고 ':''}설정 화면으로 돌아가기</small></span></button>
+    <div class="mbtns"><button class="big" id="mClose">닫기</button></div>
+    <div class="mnote">저장은 이번 라운드가 시작된 시점으로 돼요${CLOUD?'':' · 지금은 이 기기에만 저장'}</div>`;
+  const M=$('#menuModal');modalOpen('#menuModal');
+  const close=()=>M.hidden=true;
+  M.onclick=e=>{if(e.target===M)close()};
+  $('#mClose').onclick=close;
+  $('#mSave').onclick=async()=>{close();if(!Save.user&&!(await ensureLogin('save')))return;await Save.write(false)};
+  $('#mLoad').onclick=()=>{close();loadFlow(true)};
+  $('#mUser').onclick=async()=>{
+    close();
+    if(Save.user){Save.logout();$('#nickIn').value='';toast('로그아웃했어요')}
+    if(await ensureLogin('save'))Save.write(false);
+  };
+  $('#mQuit').onclick=async()=>{close();
+    if(!(await confirmBox('나가기',Save.user?`'${esc(Save.user.nick)}' 닉네임으로 저장된 게임은 남아 있어요.<br>이번 라운드가 시작된 시점부터 📂 이어하기로 계속할 수 있어요.<br>설정 화면으로 갈까요?`:'저장하지 않아서 진행 상황이 사라져요.<br>설정 화면으로 갈까요?','나가기')))return;
+    const had=!!Save.user;Save.logout(); // 저장은 남겨 두고 로그인만 풀기 (다음 게임이 이 칸에 저장되지 않게)
+    toSetup();
+    if(had)toast('저장은 남겨 뒀어요 · 📂 이어하기로 계속');
+    LS.del('hs.lastNick');$('#nickIn').value=''; // 다음 사람이 앞사람 닉네임을 보지 않게
+  };
+}
+$('#nickIn').value=LS.get('hs.lastNick')||'';
 </script>
 </body>
 </html>
