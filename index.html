@@ -346,12 +346,12 @@ input[type=text]{font:inherit;padding:9px 10px;border-radius:9px;border:1px soli
       <div class="pile" id="pile"><div class="pc"></div><div class="pc"></div><div class="pc"></div><b id="pileN">35장</b></div>
     </div>
     <div class="info">
-      <div class="stat"><small>한계숫자</small><b id="lim">-</b></div>
+      <div class="stat"><small>남은 덱</small><b id="deckn">35</b></div>
       <div class="stat pot"><small>팟</small><b id="pot">0</b></div>
       <div class="stat"><small>기본 베팅</small><b id="ante">1</b></div>
       <div class="stat"><small>현재 베팅</small><b id="cur">-</b></div>
       <div class="stat"><small>베팅 한도</small><b id="cap">-</b></div>
-      <div class="stat"><small>남은 덱</small><b id="deckn">35</b></div>
+      <div class="stat"><small>한계숫자</small><b id="lim">-</b></div>
     </div>
     <div id="phase"></div>
     <div id="result"></div>
@@ -953,10 +953,17 @@ function startGame(cfg,saved){ // saved: 불러온 저장 데이터(라운드 �
     :cfg.map((c,i)=>base({id:i,name:c.name,ai:c.ai,chips:30,color:COLORS[i],outRound:0,style:Math.random()*2-1}));
   S.humanCount=S.players.filter(p=>!p.ai).length;
   S.round=saved?saved.round:0;S.starter=saved?saved.starter:rnd(S.players.length);S.pot=0;S.limit=null;S.result=null;S.showdown=false;S.deck=makeDeck();S.cap=0;S.curBet=0;S.current=-1;S.phase='';
+  S.stage='';S.bet=null;S.hitAfter=-1;
+  if(saved&&saved.mid){ // 라운드 중간 상태 되살리기
+    const m=saved.mid;
+    Object.assign(S,{limit:m.limit,pot:m.pot,deck:m.deck.slice(),curBet:m.curBet,cap:m.cap,stage:m.stage,bet:m.bet?JSON.parse(JSON.stringify(m.bet)):null,hitAfter:m.hitAfter??-1});
+    m.players.forEach(q=>{const p=S.players[q.id];Object.assign(p,{folded:q.folded,stayed:q.stayed,rb:q.rb,inRound:q.inRound,lastAction:q.lastAction||'',
+      hand:q.hand.map(c=>({v:c.v,open:!!c.open,first:!!c.first,picked:!!c.picked,wasOpen:!!c.open}))})});
+  }
   $('#log').innerHTML='';
   if(saved){
     (saved.log||[]).slice().reverse().forEach(l=>log(l.h,l.c));
-    log(`📂 이어하기 · ${saved.round}라운드까지 진행된 게임`,'r');
+    log(saved.mid?`📂 이어하기 · ${saved.round}라운드 ${STAGE_NAME[saved.mid.stage]||''}`:`📂 이어하기 · ${saved.round+1}라운드부터`,'r');
     Save.snap=saved;Save.lastAt=saved.savedAt;
   }
   $('#setup').hidden=true;$('#game').hidden=false;$('#overModal').hidden=true;
@@ -995,11 +1002,14 @@ function nextAliveFrom(i){const n=S.players.length;for(let k=0;k<n;k++){const p=
 async function gameLoop(gid,resumed){
   try{
     if(S.round===0&&!resumed)await pickStarter(gid);
+    let mid=!!(resumed&&S.stage); // 라운드 중간에 저장된 게임
     while(gid===GAME_ID){
-      const al=alive();
-      if(al.length<2||(S.humanCount>0&&!al.some(p=>!p.ai)))return gameOver();
-      Save.mark(); // 라운드 시작 시점 기록 + 로그인돼 있으면 자동 저장
-      await playRound(gid);
+      if(!mid){
+        const al=alive();
+        if(al.length<2||(S.humanCount>0&&!al.some(p=>!p.ai)))return gameOver();
+        Save.mark(false); // 라운드 시작 시점 기록 + 로그인돼 있으면 자동 저장
+      }
+      await playRound(gid,mid);mid=false;
     }
   }catch(e){if(e!=='stop')console.error(e)}
 }
@@ -1018,8 +1028,12 @@ async function rollDice(gid){
   chk(gid);SFX.limit();
 }
 
-async function playRound(gid){
-  S.round++;const ante=anteFor(S.round);
+// 라운드 진행 단계(S.stage): pick(공개할 카드 선택) → reveal(공개) → bet1 → hit → bet2. 사람 행동이 끝날 때마다 저장하고, 불러오면 그 단계부터 이어 감
+async function playRound(gid,resume){
+  if(resume){ // 저장된 라운드 중간부터
+    $('#stageRow').classList.add('gone');$('#diceNum').textContent=S.limit;S.current=-1;render();await wait(400);chk(gid);
+  }else{
+  S.round++;const ante=anteFor(S.round);S.bet=null;S.hitAfter=-1;S.stage='';
   S.showdown=false;S.result=null;S.pot=0;S.limit=null;S.cap=0;S.curBet=0;S.current=-1;
   S.players.forEach(p=>{p.hand=[];p.folded=false;p.stayed=false;p.rb=0;p.inRound=p.chips>0;p.peek=false;p.revealed=false;p.lastAction=''});
   S.starter=nextAliveFrom(S.starter);
@@ -1049,21 +1063,31 @@ async function playRound(gid){
   await sleep(DEAL_MS);chk(gid);
   S.players.forEach(p=>p.hand.forEach(c=>c.hold=false));render(); // 내 카드는 이때 뒤집혀 보임
   await wait(500);chk(gid);
+  S.stage='pick';
+  }
 
+  if(S.stage==='pick'){
   setPhase('공개할 카드 선택');
   // 1) 선부터 차례로 공개할 카드를 고름 — 고른 카드에는 '선택' 표시만 하고 아직 뒤집지 않음
   for(const p of order()){
+    if(p.hand.some(c=>c.picked||c.first))continue; // 이미 고름(불러온 경우)
     S.current=p.id;render();
     let idx;
     if(p.ai){await wait(450);idx=rnd(3)}else idx=await askReveal(p);
     chk(gid);
     p.hand[idx].picked=true;p.peek=false;p.lastAction='선택 완료';
     render();SFX.select();
-    log(`${p.name} 공개할 카드 선택`);await wait(250);
+    log(`${p.name} 공개할 카드 선택`);
+    if(!p.ai)Save.mark(true);
+    await wait(250);
   }
+  S.stage='reveal';
+  }
+  if(S.stage==='reveal'){
   // 2) 모두 고른 뒤 선부터 차례로 공개
   setPhase('카드 1장 공개');
   for(const p of order()){
+    if(p.hand.some(c=>c.first))continue;
     S.current=p.id;render();
     await wait(300);chk(gid);
     const idx=p.hand.findIndex(c=>c.picked);
@@ -1078,43 +1102,60 @@ async function playRound(gid){
       if((dx||dy)&&c.el.animate)c.el.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'none'}],{duration:380,easing:'cubic-bezier(.2,.8,.2,1)'})});
     log(`${p.name} 공개: ${fmt(moved.v)}`);await wait(250);
   }
-  S.current=-1;
-
-  setPhase('1차 베팅');await betting(1,gid);
-  if(inPlay().length===1)return endByFold(gid);
-  setPhase('HIT / STAY');await hitPhase(gid);
-  setPhase('2차 베팅');await betting(2,gid);
-  if(inPlay().length===1)return endByFold(gid);
+  S.current=-1;S.stage='bet1';
+  }
+  if(S.stage==='bet1'){
+    setPhase('1차 베팅');await betting(1,gid);
+    if(inPlay().length===1){S.stage='';return endByFold(gid)}
+    S.stage='hit';
+  }
+  if(S.stage==='hit'){setPhase('HIT / STAY');await hitPhase(gid);S.stage='bet2'}
+  if(S.stage==='bet2'){
+    setPhase('2차 베팅');await betting(2,gid);
+    S.stage='';
+    if(inPlay().length===1)return endByFold(gid);
+  }
+  S.stage='';
   await showdown(gid);
 }
 
 async function betting(stage,gid){
-  S.players.forEach(p=>{p.rb=0;if(!p.folded&&!p.stayed)p.lastAction=''});
-  S.curBet=0;
-  const cap=Math.min(...inPlay().map(p=>p.chips));S.cap=cap;
-  if(cap<=0){log(`${stage}차 베팅: 칩이 없는 플레이어가 있어 건너뜀`);S.cap=0;render();await wait(600);return}
-  const seq=order();
-  let need=new Set(seq.map(p=>p.id)),i=0;
-  while(need.size>0&&inPlay().length>1){
-    const p=seq[i%seq.length];i++;
-    if(p.folded||!need.has(p.id))continue;
+  // S.bet = {stage, seq: 차례 순서 id, need: 아직 응답해야 하는 id, i: 다음 순번} — 저장·불러오기용
+  let B=S.bet&&S.bet.stage===stage?S.bet:null;
+  if(!B){
+    S.players.forEach(p=>{p.rb=0;if(!p.folded&&!p.stayed)p.lastAction=''});
+    S.curBet=0;
+    const cap=Math.min(...inPlay().map(p=>p.chips));S.cap=cap;
+    if(cap<=0){log(`${stage}차 베팅: 칩이 없는 플레이어가 있어 건너뜀`);S.cap=0;render();await wait(600);return}
+    const ids=order().map(p=>p.id);B=S.bet={stage,seq:ids,need:ids.slice(),i:0};
+  }
+  const seq=B.seq.map(id=>S.players[id]);
+  while(B.need.length>0&&inPlay().length>1){
+    const p=seq[B.i%seq.length];B.i++;
+    if(p.folded||!B.need.includes(p.id))continue;
     S.current=p.id;render();
     let a;
     if(p.ai){await wait(850);a=aiBet(p,stage)}else a=await askBet(p,stage);
     chk(gid);p.peek=false;
     const toCall=S.curBet-p.rb;
-    if(a.type==='fold'){p.folded=true;need.delete(p.id);p.lastAction='폴드';SFX.fold();log(`${p.name} 폴드`)}
-    else if(a.type==='call'){pay(p,toCall);need.delete(p.id);p.lastAction=toCall?`콜 ${S.curBet}`:'체크';log(`${p.name} ${toCall?`콜 (${toCall})`:'체크'}`)}
-    else{const was=S.curBet;pay(p,a.to-p.rb);S.curBet=a.to;need=new Set(inPlay().map(q=>q.id));need.delete(p.id);p.lastAction=was===0?`베팅 ${a.to}`:`레이즈 ${a.to}`;log(`${p.name} ${was===0?'베팅':'레이즈'} <b>${a.to}</b>`)}
-    render();await wait(250);
+    const drop=()=>B.need=B.need.filter(x=>x!==p.id);
+    if(a.type==='fold'){p.folded=true;drop();p.lastAction='폴드';SFX.fold();log(`${p.name} 폴드`)}
+    else if(a.type==='call'){pay(p,toCall);drop();p.lastAction=toCall?`콜 ${S.curBet}`:'체크';log(`${p.name} ${toCall?`콜 (${toCall})`:'체크'}`)}
+    else{const was=S.curBet;pay(p,a.to-p.rb);S.curBet=a.to;B.need=inPlay().map(q=>q.id).filter(x=>x!==p.id);p.lastAction=was===0?`베팅 ${a.to}`:`레이즈 ${a.to}`;log(`${p.name} ${was===0?'베팅':'레이즈'} <b>${a.to}</b>`)}
+    render();
+    if(!p.ai)Save.mark(true);
+    await wait(250);
   }
-  S.current=-1;S.players.forEach(p=>{p.rb=0;if(!p.folded&&!p.stayed)p.lastAction=''});S.cap=0;render();
+  S.bet=null;S.current=-1;S.players.forEach(p=>{p.rb=0;if(!p.folded&&!p.stayed)p.lastAction=''});S.cap=0;render();
 }
 
 async function hitPhase(gid){
+  let after=S.hitAfter??-1; // 불러온 경우: 이번 바퀴에서 마지막으로 행동한 플레이어 다음부터
   while(true){
-    const pend=order().filter(p=>!p.stayed);
+    let pend=order().filter(p=>!p.stayed);
     if(!pend.length)break;
+    if(after>=0){const o=order(),k=o.findIndex(p=>p.id===after);after=-1;
+      if(k>=0){const rest=o.slice(k+1).filter(p=>!p.stayed);if(!rest.length)continue;pend=rest}}
     for(const p of pend){
       if(p.folded||p.stayed)continue;
       S.current=p.id;render();
@@ -1129,10 +1170,12 @@ async function hitPhase(gid){
         await sleep(DEAL_MS);chk(gid);glint([c.el]);render();
         log(`${p.name} HIT → ${fmt(c.v)}`);
       }else{p.stayed=true;SFX.stay();log(`${p.name} STAY`);render()}
+      S.hitAfter=p.id;
+      if(!p.ai)Save.mark(true);
       await wait(350);
     }
   }
-  S.current=-1;S.players.forEach(p=>{if(!p.folded)p.lastAction=''});render();
+  S.hitAfter=-1;S.current=-1;S.players.forEach(p=>{if(!p.folded)p.lastAction=''});render();
 }
 
 async function distribute(winners){
@@ -1256,6 +1299,7 @@ async function slotKey(nick,pin){
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`hitstay|${nickKey(nick)}|${pin}`));
   return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+const STAGE_NAME={pick:'공개할 카드 선택',reveal:'카드 공개',bet1:'1차 베팅',hit:'HIT / STAY',bet2:'2차 베팅'};
 const Save={
   user:null, // {nick,key} — 이번 게임에서만 유지(같은 기기를 여러 사람이 써도 남의 칸에 저장되지 않게). 비밀번호는 저장하지 않음
   anon:LS.get('hs.anon'), // Firebase 익명 로그인 토큰 (기기마다 따로)
@@ -1307,10 +1351,15 @@ const Save={
     if(this.waiting&&this.waiting.job.user.key===u.key)this.waiting.job.skip=true; // 아직 안 보낸 저장은 취소
     return this.enqueue(async()=>{if(!CLOUD){LS.del('hs.local.'+u.key);return}await this.doc('DELETE',null,u)});
   },
-  mark(){ // 라운드가 시작될 때 상태를 찍어 두고, 로그인돼 있으면 자동 저장
+  mark(mid){ // 라운드가 시작될 때(mid=false)와 사람이 행동을 마칠 때(mid=true) 상태를 찍어 두고, 로그인돼 있으면 자동 저장
     const L=[...$('#log').children].slice(0,80).map(d=>({h:d.innerHTML,c:d.className}));
-    this.snap=JSON.parse(JSON.stringify({ver:1,game:'hitstay',round:S.round,starter:S.starter,
-      players:S.players.map(p=>({id:p.id,name:p.name,ai:p.ai,chips:p.chips,color:p.color,outRound:p.outRound,style:p.style})),log:L}));
+    const d={ver:2,game:'hitstay',round:S.round,starter:S.starter,
+      players:S.players.map(p=>({id:p.id,name:p.name,ai:p.ai,chips:p.chips,color:p.color,outRound:p.outRound,style:p.style})),log:L};
+    // mid: 라운드 진행 중 상태 (round는 진행 중인 라운드 번호)
+    if(mid)d.mid={stage:S.stage,limit:S.limit,pot:S.pot,deck:S.deck,curBet:S.curBet,cap:S.cap,bet:S.bet,hitAfter:S.hitAfter,
+      players:S.players.map(p=>({id:p.id,folded:p.folded,stayed:p.stayed,rb:p.rb,inRound:p.inRound,lastAction:p.lastAction,
+        hand:p.hand.map(c=>({v:c.v,open:!!c.open,first:!!c.first,picked:!!c.picked}))}))};
+    this.snap=JSON.parse(JSON.stringify(d));
     if(this.user)this.write(true);
   },
   write(silent){
@@ -1336,8 +1385,8 @@ function ensureLogin(mode){ // mode: start / save / load — 닉네임+비밀번
     const err=$('#loginErr'),nick=$('#nickIn'),pin=$('#pinIn');
     $('#loginTitle').textContent={save:'닉네임으로 저장',load:'저장된 게임 불러오기',start:'🃏 게임 준비'}[mode];
     $('#loginHint').innerHTML={
-      start:'<b style="color:var(--gold)">닉네임과 비밀번호 4자리를 넣으면 라운드마다 자동 저장됩니다.</b><br>같은 닉네임으로 저장된 게임이 있으면 지우고 새로 저장해요(이어 하려면 📂 이어하기).<br>다른 기기에서도 같은 닉네임과 비밀번호로 이어 할 수 있어요. 비밀번호를 잊으면 저장을 찾을 수 없어요.',
-      save:'저장하면 이후 라운드마다 자동 저장됩니다. 다른 기기에서도 같은 닉네임과 비밀번호 4자리를 넣으면 이어 할 수 있어요. 비밀번호를 잊으면 저장을 찾을 수 없어요.',
+      start:'<b style="color:var(--gold)">닉네임과 비밀번호 4자리를 넣으면 사람이 행동할 때마다 자동 저장됩니다.</b><br>같은 닉네임으로 저장된 게임이 있으면 지우고 새로 저장해요(이어 하려면 📂 이어하기).<br>다른 기기에서도 같은 닉네임과 비밀번호로 이어 할 수 있어요. 비밀번호를 잊으면 저장을 찾을 수 없어요.',
+      save:'저장하면 이후 사람이 행동할 때마다 자동 저장됩니다. 다른 기기에서도 같은 닉네임과 비밀번호 4자리를 넣으면 이어 할 수 있어요. 비밀번호를 잊으면 저장을 찾을 수 없어요.',
       load:'저장할 때 쓴 닉네임과 비밀번호 4자리를 넣어 주세요.'}[mode]+(CLOUD?'':' (지금은 이 기기에만 저장돼요)');
     $('#loginOk').textContent=mode==='start'?'시작':'확인';
     $('#loginCancel').textContent=mode==='start'?'저장 없이 시작':'취소';
@@ -1374,12 +1423,12 @@ function showLoadCard(d,inGame){
       P.innerHTML=`<h2>📂 불러오기</h2><div class="savedSub">'${nick}' 닉네임과 이 비밀번호로 저장된 게임이 없어요</div><div class="mbtns"><button class="big" id="ldRe">다시 입력</button><button class="rulesb" id="ldNo">닫기</button></div>`;
       $('#ldRe').onclick=()=>{$('#loadModal').hidden=true;res('retry')};
     }else{
-      const al=d.players.filter(p=>p.chips>0).length;
+      const al=d.players.filter(p=>p.chips>0||(d.mid&&d.mid.players[p.id].inRound)).length;
       P.innerHTML=`<h2>📂 저장된 게임</h2>
         <div class="savedSub" style="margin-bottom:2px">${nick} 님 · 저장한 날짜·시간</div>
         <div class="savedAt">${fmtDate(d.savedAt)}</div>
-        <div class="savedSub"><b style="color:var(--ink)">${d.round+1}라운드</b>부터 · ${d.players.length}인 중 ${al}명 남음 · 선 <b style="color:var(--ink)">${esc(d.players[d.starter].name)}</b></div>
-        <div class="lplayers">${d.players.map(p=>`<span class="${p.chips>0?'':'out'}"><span class="dot" style="background:${esc(p.color)}"></span>${esc(p.name)}${p.ai?' (AI)':''} 🪙 ${+p.chips}</span>`).join('')}</div>
+        <div class="savedSub">${d.mid?`<b style="color:var(--ink)">${d.round}라운드 · ${STAGE_NAME[d.mid.stage]||''}</b> 중`:`<b style="color:var(--ink)">${d.round+1}라운드</b>부터`} · ${d.players.length}인 중 ${al}명 남음 · 선 <b style="color:var(--ink)">${esc(d.players[d.starter].name)}</b>${d.mid?` · 팟 ${+d.mid.pot}`:''}</div>
+        <div class="lplayers">${d.players.map(p=>`<span class="${p.chips>0||(d.mid&&d.mid.players[p.id].inRound)?'':'out'}"><span class="dot" style="background:${esc(p.color)}"></span>${esc(p.name)}${p.ai?' (AI)':''} 🪙 ${+p.chips}</span>`).join('')}</div>
         ${inGame?'<div class="mnote">지금 하던 게임은 저장한 시점 이후 내용이 사라져요</div>':''}
         <div class="mbtns"><button class="big" id="ldOk">이어하기</button><button class="rulesb" id="ldNo">취소</button></div>`;
       $('#ldOk').onclick=()=>{$('#loadModal').hidden=true;res(true)};
@@ -1399,18 +1448,18 @@ async function loadFlow(inGame,prev=Save.user,prevAt=Save.lastAt){
   if(ok==='retry')return loadFlow(inGame,prev,prevAt);
   if(!ok)return back();
   startGame(null,d);
-  toast(`${d.round+1}라운드부터 이어 합니다`);
+  toast(d.mid?`${d.round}라운드 ${STAGE_NAME[d.mid.stage]||''}부터 이어 합니다`:`${d.round+1}라운드부터 이어 합니다`);
 }
 function openMenu(){
   const u=Save.user,P=$('#menuPanel');
-  const saveSub=u?(Save.lastAt?`마지막 저장: ${fmtDate(Save.lastAt)}`:'자동 저장: 라운드마다'):'닉네임과 비밀번호 4자리로 저장';
+  const saveSub=u?(Save.lastAt?`마지막 저장: ${fmtDate(Save.lastAt)}`:'자동 저장: 사람이 행동할 때마다'):'닉네임과 비밀번호 4자리로 저장';
   P.innerHTML=`<h2>메뉴</h2><div class="muser">${u?`👤 ${esc(u.nick)} · 자동 저장 켜짐`:'저장 안 하는 중 (로그인 안 됨)'}</div>
     <button class="mitem" id="mSave"><span class="ic">💾</span><span>지금 저장하기<small>${saveSub}</small></span></button>
     <button class="mitem" id="mLoad"><span class="ic">📂</span><span>불러오기<small>저장한 날짜·시간을 보고 이어 하기</small></span></button>
     <button class="mitem" id="mUser"><span class="ic">👤</span><span>${u?'닉네임 바꾸기':'로그인'}<small>${u?`${esc(u.nick)} 님 로그아웃 후 다른 닉네임으로 저장`:'저장·불러오기에 쓸 닉네임'}</small></span></button>
     <button class="mitem" id="mQuit"><span class="ic">🏠</span><span>나가기<small>${u?'저장은 남겨 두고 ':''}설정 화면으로 돌아가기</small></span></button>
     <div class="mbtns"><button class="big" id="mClose">닫기</button></div>
-    <div class="mnote">저장은 이번 라운드가 시작된 시점으로 돼요${CLOUD?'':' · 지금은 이 기기에만 저장'}</div>`;
+    <div class="mnote">저장은 마지막으로 사람이 행동을 마친 시점으로 돼요${CLOUD?'':' · 지금은 이 기기에만 저장'}</div>`;
   const M=$('#menuModal');modalOpen('#menuModal');
   const close=()=>M.hidden=true;
   M.onclick=e=>{if(e.target===M)close()};
@@ -1423,7 +1472,7 @@ function openMenu(){
     if(await ensureLogin('save'))Save.write(false);
   };
   $('#mQuit').onclick=async()=>{close();
-    if(!(await confirmBox('나가기',Save.user?`'${esc(Save.user.nick)}' 닉네임으로 저장된 게임은 남아 있어요.<br>이번 라운드가 시작된 시점부터 📂 이어하기로 계속할 수 있어요.<br>설정 화면으로 갈까요?`:'저장하지 않아서 진행 상황이 사라져요.<br>설정 화면으로 갈까요?','나가기')))return;
+    if(!(await confirmBox('나가기',Save.user?`'${esc(Save.user.nick)}' 닉네임으로 저장된 게임은 남아 있어요.<br>마지막으로 행동을 마친 시점부터 📂 이어하기로 계속할 수 있어요.<br>설정 화면으로 갈까요?`:'저장하지 않아서 진행 상황이 사라져요.<br>설정 화면으로 갈까요?','나가기')))return;
     const had=!!Save.user;Save.logout(); // 저장은 남겨 두고 로그인만 풀기 (다음 게임이 이 칸에 저장되지 않게)
     toSetup();
     if(had)toast('저장은 남겨 뒀어요 · 📂 이어하기로 계속');
